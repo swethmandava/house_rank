@@ -1399,6 +1399,10 @@ export default function Home() {
                   const summary = houseSummary(house, activeCriteria, people);
                   const pending = summary.graded < activeCriteria.length;
                   const listingPrice = parsePrice(house.price);
+                  const [streetAddress, ...localityParts] = house.name
+                    .split(',')
+                    .map((part) => part.trim());
+                  const locality = localityParts.join(', ');
                   const priceDetails = [
                     listingPrice
                       ? `${formatCompactCurrency(listingPrice)} list`
@@ -1417,9 +1421,15 @@ export default function Home() {
                           type="button"
                           className="group w-full rounded-xl px-6 py-2 text-center transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => openHouse(house.id)}
+                          title={house.name}
                         >
-                          <span className="block truncate text-[13px] font-medium">
-                            {house.name}
+                          <span className="block min-h-8 text-[13px] leading-4 font-medium">
+                            <span className="block truncate">
+                              {streetAddress}
+                            </span>
+                            {locality && (
+                              <span className="block truncate">{locality}</span>
+                            )}
                           </span>
                           {priceDetails.length > 0 && (
                             <span className="mt-0.5 block truncate text-[10px] font-normal tabular-nums text-muted-foreground/80">
