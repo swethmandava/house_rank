@@ -946,7 +946,7 @@ export default function Home() {
     house: House,
     includeSubjective = true,
     requiredCriterionId?: string,
-  ): Promise<{ success: boolean; score?: number }> {
+  ): Promise<{ success: boolean; score?: number; error?: string }> {
     setGradingHouseIds((current) =>
       current.includes(house.id) ? current : [...current, house.id],
     );
@@ -967,8 +967,8 @@ export default function Home() {
           timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });
-      if (!result.ok) return { success: false };
       const grade = await readJsonResponse<{
+        error?: string;
         commute: null | {
           minutes: number[];
           bestModes?: Array<string | null>;
@@ -1002,6 +1002,12 @@ export default function Home() {
           sources: Array<{ title: string; url: string }>;
         }>;
       }>(result);
+      if (!result.ok) {
+        return {
+          success: false,
+          error: grade.error || 'Automatic grading failed',
+        };
+      }
       const requestedScore =
         requiredCriterionId === 'commute'
           ? (grade.commute?.grade ?? null)
@@ -1014,6 +1020,16 @@ export default function Home() {
               : null;
       const requestedGradeAvailable =
         !requiredCriterionId || requestedScore !== null;
+      const requestedError =
+        requiredCriterionId === 'commute' && !grade.commute
+          ? 'Add commute addresses in setup'
+          : requiredCriterionId === 'walkable' &&
+              'unavailable' in grade.walkability
+            ? grade.walkability.reason
+            : requiredCriterionId === 'schools' &&
+                'unavailable' in grade.schools
+              ? grade.schools.reason
+              : undefined;
       setHouses((current) =>
         current.map((item) => {
           if (item.id !== house.id) return item;
@@ -1129,10 +1145,15 @@ export default function Home() {
       return {
         success: requestedGradeAvailable,
         ...(requestedScore === null ? {} : { score: requestedScore }),
+        ...(requestedError ? { error: requestedError } : {}),
       };
-    } catch {
+    } catch (error) {
       // A house stays pending when API credentials or network access are unavailable.
-      return { success: false };
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Automatic grading failed',
+      };
     } finally {
       setGradingHouseIds((current) =>
         current.filter((houseId) => houseId !== house.id),
@@ -1250,7 +1271,9 @@ export default function Home() {
         return;
       }
       const refreshed = await autoGradeHouse(house, false, criterion.id);
-      if (!refreshed.success) throw new Error('Could not refresh this grade');
+      if (!refreshed.success) {
+        throw new Error(refreshed.error || 'Could not refresh this grade');
+      }
       clearOverride(house.id, criterion.id);
     } catch (error) {
       setAiRatingError(

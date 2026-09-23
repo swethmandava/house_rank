@@ -41,7 +41,7 @@ export type ListingResearch = {
   sources: Array<{ title: string; url: string }>;
 };
 
-const model = process.env.OPENAI_MODEL || 'gpt-5.5';
+const model = process.env.OPENAI_MODEL || 'gpt-6-astra';
 
 export async function researchListing(
   listingUrl: string,
