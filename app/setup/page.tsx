@@ -139,7 +139,13 @@ export default function SetupPage() {
           timezoneOffset: new Date().getTimezoneOffset(),
         }),
         keepalive: true,
-      }).catch(() => setRegradeStatus('failed'));
+      })
+        .then((response) => {
+          if (!response.ok && response.status !== 409) {
+            setRegradeStatus('failed');
+          }
+        })
+        .catch(() => setRegradeStatus('failed'));
     },
   );
 

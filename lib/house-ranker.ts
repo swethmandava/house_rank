@@ -184,6 +184,26 @@ export function scoreTravelTime(minutes: number, targetMinutes: number) {
   return Math.max(0, Math.min(5, Math.round(score * 10) / 10));
 }
 
+export function invalidateAutoGrades(house: House): House {
+  return {
+    ...house,
+    commute: 'Recompute to use the updated setup',
+    nearby: 'Recompute to use the updated setup',
+    schools: 'Recompute to use the updated setup',
+    ratings: Object.fromEntries(
+      Object.entries(house.ratings).map(([criterionId, rating]) => [
+        criterionId,
+        {
+          auto: null,
+          ...(rating.override === undefined
+            ? {}
+            : { override: rating.override }),
+        },
+      ]),
+    ),
+  };
+}
+
 export function normalizeSettings(
   saved?: Partial<HouseRankerSettings>,
 ): HouseRankerSettings {

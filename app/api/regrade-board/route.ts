@@ -6,6 +6,7 @@ import {
 } from '@/lib/auto-grade-result';
 import {
   buildSubjectiveAssessmentCriteria,
+  invalidateAutoGrades,
   normalizeSettings,
 } from '@/lib/house-ranker';
 import { getBoardState, mergeBoardState } from '@/lib/house-ranker-store';
@@ -52,8 +53,10 @@ export async function POST(request: Request) {
     }
 
     const houses = board.houses;
+    const invalidatedHouses = houses.map(invalidateAutoGrades);
     const startedAt = Date.now();
     await mergeBoardState(body.boardId, {
+      houses: invalidatedHouses,
       regrade: {
         settingsKey,
         status: 'running',
