@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   ArrowLeft,
@@ -785,7 +784,7 @@ export default function SetupPage() {
     <main className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/92 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-7">
-          <Link
+          <a
             href={`/${boardId}`}
             className="flex items-center gap-2.5 font-medium tracking-[-0.02em]"
           >
@@ -793,7 +792,7 @@ export default function SetupPage() {
               <HouseIcon className="size-4" aria-hidden="true" />
             </span>
             House ranker
-          </Link>
+          </a>
           <div className="flex items-center gap-2">
             {syncStatus === 'error' && (
               <span className="hidden items-center gap-1.5 text-xs text-destructive sm:inline-flex">
@@ -803,7 +802,7 @@ export default function SetupPage() {
             )}
             <Button
               className="rounded-full"
-              render={<Link href={`/${boardId}`} />}
+              render={<a href={`/${boardId}`} aria-label="Back to homes" />}
             >
               <ArrowLeft data-icon="inline-start" /> Homes
             </Button>

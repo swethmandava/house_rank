@@ -21,7 +21,6 @@ import {
   Trash2,
   UserPlus,
 } from 'lucide-react';
-import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -1351,7 +1350,7 @@ export default function Home() {
             </Button>
             <Button
               className="rounded-full px-3.5"
-              render={<Link href={`/${boardId}/setup`} />}
+              render={<a href={`/${boardId}/setup`} aria-label="Open setup" />}
             >
               <Settings2 data-icon="inline-start" />
               Setup
