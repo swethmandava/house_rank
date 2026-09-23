@@ -101,6 +101,7 @@ export default function SetupPage() {
   const settingsReadyRef = useRef(false);
   const priorityOrderInitializedRef = useRef(false);
   const persistedSettingsRef = useRef('');
+  const submittedSettingsRef = useRef(new Set<string>());
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(
     null,
   );
@@ -118,11 +119,21 @@ export default function SetupPage() {
     settingsReadyRef.current = false;
     priorityOrderInitializedRef.current = false;
     persistedSettingsRef.current = '';
+    submittedSettingsRef.current.clear();
     return subscribeToBoardState(
       boardId,
       (board) => {
         settingsReadyRef.current = true;
         const normalized = normalizeSettings(board?.settings);
+        const serializedSettings = JSON.stringify(normalized);
+        const isLocalEcho = submittedSettingsRef.current.delete(
+          serializedSettings,
+        );
+        persistedSettingsRef.current = serializedSettings;
+        if (isLocalEcho) {
+          setSyncStatus('saved');
+          return;
+        }
         const nextSettings = priorityOrderInitializedRef.current
           ? normalized
           : {
@@ -133,7 +144,6 @@ export default function SetupPage() {
               ),
             };
         priorityOrderInitializedRef.current = true;
-        persistedSettingsRef.current = JSON.stringify(normalized);
         setSettings(nextSettings);
         setSyncStatus('saved');
       },
@@ -156,12 +166,16 @@ export default function SetupPage() {
 
     const timer = window.setTimeout(() => {
       setSyncStatus('saving');
+      submittedSettingsRef.current.add(serializedSettings);
       void mergeBoardState(boardId, { settings: persistedSettings })
         .then(() => {
           persistedSettingsRef.current = serializedSettings;
           setSyncStatus('saved');
         })
-        .catch(() => setSyncStatus('error'));
+        .catch(() => {
+          submittedSettingsRef.current.delete(serializedSettings);
+          setSyncStatus('error');
+        });
     }, 350);
 
     return () => window.clearTimeout(timer);
