@@ -1,0 +1,708 @@
+{
+  "retrieved_at": "2026-09-22",
+  "source": "https://www.greatschools.org/best-schools/california/san-francisco/",
+  "ratings": [
+    [
+      "The New School of San Francisco",
+      10,
+      "940 Filbert Street, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/31959-The-New-School-Of-San-Francisco/"
+    ],
+    [
+      "Chinese Immersion School At Deavila",
+      10,
+      "1250 Waller Street, San Francisco, CA, 94117",
+      "https://www.greatschools.org/california/san-francisco/25096-Chinese-Immersion-School-At-Deavila/"
+    ],
+    [
+      "Asawa (Ruth) San Francisco School Of The Arts, A Public School.",
+      10,
+      "555 Portola Drive, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6339-Asawa-Ruth-San-Francisco-School-Of-The-Arts-A-Public-School./"
+    ],
+    [
+      "Lilienthal (Claire) Elementary School",
+      10,
+      "3630 Divisadero Street, San Francisco, CA, 94123",
+      "https://www.greatschools.org/california/san-francisco/6394-Lilienthal-Claire-Elementary-School/"
+    ],
+    [
+      "Peabody (George) Elementary School",
+      10,
+      "251 6th Avenue, San Francisco, CA, 94118",
+      "https://www.greatschools.org/california/san-francisco/6421-Peabody-George-Elementary-School/"
+    ],
+    [
+      "Stevenson (Robert Louis) Elementary School",
+      10,
+      "2051 34th Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/6436-Stevenson-Robert-Louis-Elementary-School/"
+    ],
+    [
+      "Yu (Alice Fong) Elementary School",
+      10,
+      "1541 12th Avenue, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/6455-Yu-Alice-Fong-Elementary-School/"
+    ],
+    [
+      "Alamo Elementary School",
+      9,
+      "250 23rd Avenue, San Francisco, CA, 94121",
+      "https://www.greatschools.org/california/san-francisco/6335-Alamo-Elementary-School/"
+    ],
+    [
+      "Argonne Elementary School",
+      9,
+      "680 18th Avenue, San Francisco, CA, 94121",
+      "https://www.greatschools.org/california/san-francisco/6338-Argonne-Elementary-School/"
+    ],
+    [
+      "Clarendon Alternative Elementary School",
+      9,
+      "500 Clarendon Avenue, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6351-Clarendon-Alternative-Elementary-School/"
+    ],
+    [
+      "Garfield Elementary School",
+      9,
+      "420 Filbert Street, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/6370-Garfield-Elementary-School/"
+    ],
+    [
+      "Grattan Elementary School",
+      9,
+      "165 Grattan Street, San Francisco, CA, 94117",
+      "https://www.greatschools.org/california/san-francisco/6375-Grattan-Elementary-School/"
+    ],
+    [
+      "Key (Francis Scott) Elementary School",
+      9,
+      "1530 43rd Avenue, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/6385-Key-Francis-Scott-Elementary-School/"
+    ],
+    [
+      "Lau (Gordon J.) Elementary School",
+      9,
+      "950 Clay Street, San Francisco, CA, 94108",
+      "https://www.greatschools.org/california/san-francisco/6389-Lau-Gordon-J.-Elementary-School/"
+    ],
+    [
+      "Lawton Alternative Elementary School",
+      9,
+      "1570 31st Avenue, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/6390-Lawton-Alternative-Elementary-School/"
+    ],
+    [
+      "Lincoln (Abraham) High School",
+      9,
+      "2162 24th Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/6395-Lincoln-Abraham-High-School/"
+    ],
+    [
+      "Lowell High School",
+      9,
+      "1101 Eucalyptus Drive, San Francisco, CA, 94132",
+      "https://www.greatschools.org/california/san-francisco/6397-Lowell-High-School/"
+    ],
+    [
+      "McKinley Elementary School",
+      9,
+      "1025 14th Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6407-McKinley-Elementary-School/"
+    ],
+    [
+      "Presidio Middle School",
+      9,
+      "450 30th Avenue, San Francisco, CA, 94121",
+      "https://www.greatschools.org/california/san-francisco/6423-Presidio-Middle-School/"
+    ],
+    [
+      "Mission Preparatory School",
+      8,
+      "1050 York Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/25813-Mission-Preparatory-School/"
+    ],
+    [
+      "KIPP Bayview Academy",
+      8,
+      "1060 Key Avenue, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/12638-KIPP-Bayview-Academy/"
+    ],
+    [
+      "KIPP San Francisco Bay Academy",
+      8,
+      "1430 Scott Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/12639-KIPP-San-Francisco-Bay-Academy/"
+    ],
+    [
+      "Feinstein (Dianne) Elementary School",
+      8,
+      "2550 25th Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/16863-Feinstein-Dianne-Elementary-School/"
+    ],
+    [
+      "Alvarado Elementary School",
+      8,
+      "625 Douglass Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6336-Alvarado-Elementary-School/"
+    ],
+    [
+      "Balboa High School",
+      8,
+      "1000 Cayuga Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6340-Balboa-High-School/"
+    ],
+    [
+      "Creative Arts Charter School",
+      8,
+      "1601 Turk Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/6355-Creative-Arts-Charter-School/"
+    ],
+    [
+      "Gateway High School",
+      8,
+      "1430 Scott Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/6371-Gateway-High-School/"
+    ],
+    [
+      "Giannini (A.P.) Middle School",
+      8,
+      "3151 Ortega Street, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/6372-Giannini-A.P.-Middle-School/"
+    ],
+    [
+      "Jefferson Elementary School",
+      8,
+      "1725 Irving Street, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/6384-Jefferson-Elementary-School/"
+    ],
+    [
+      "Frank McCoppin Elementary School",
+      8,
+      "651 6th Avenue, San Francisco, CA, 94118",
+      "https://www.greatschools.org/california/san-francisco/6406-Mccoppin-Frank-Elementary-School/"
+    ],
+    [
+      "Monroe Elementary School",
+      8,
+      "260 Madrid Street, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6412-Monroe-Elementary-School/"
+    ],
+    [
+      "New Traditions Elementary School",
+      8,
+      "2049 Grove St., San Francisco, CA, 94117",
+      "https://www.greatschools.org/california/san-francisco/6415-New-Traditions-Elementary-School/"
+    ],
+    [
+      "Rooftop Elementary School",
+      8,
+      "443 Burnett Avenue, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6426-Rooftop-Elementary-School/"
+    ],
+    [
+      "Roosevelt Middle School",
+      8,
+      "460 Arguello Boulevard, San Francisco, CA, 94118",
+      "https://www.greatschools.org/california/san-francisco/6427-Roosevelt-Middle-School/"
+    ],
+    [
+      "Sunnyside Elementary School",
+      8,
+      "250 Foerster Street, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6437-Sunnyside-Elementary-School/"
+    ],
+    [
+      "Sunset Elementary School",
+      8,
+      "1920 41st Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/6438-Sunset-Elementary-School/"
+    ],
+    [
+      "Ulloa Elementary School",
+      8,
+      "2650 42nd Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/6445-Ulloa-Elementary-School/"
+    ],
+    [
+      "West Portal Elementary School",
+      8,
+      "5 Lenox Way, San Francisco, CA, 94127",
+      "https://www.greatschools.org/california/san-francisco/6448-West-Portal-Elementary-School/"
+    ],
+    [
+      "Washington (George) High School",
+      8,
+      "600 32nd Avenue, San Francisco, CA, 94121",
+      "https://www.greatschools.org/california/san-francisco/6450-Washington-George-High-School/"
+    ],
+    [
+      "Daniel Webster Elementary School",
+      8,
+      "465 Missouri Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-francisco/6451-Daniel-Webster-Elementary-School/"
+    ],
+    [
+      "Yick Wo Elementary School",
+      8,
+      "2245 Jones Street, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/6454-Yick-Wo-Elementary-School/"
+    ],
+    [
+      "KIPP San Francisco College Preparatory",
+      7,
+      "1195 Hudson Avenue, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/27281-KIPP-San-Francisco-College-Preparatory/"
+    ],
+    [
+      "Academy (The)- SF @Mcateer",
+      7,
+      "555 Portola Drive, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/25079-Academy-Of-Arts-And-Sciences/"
+    ],
+    [
+      "San Francisco Public Montessori School",
+      7,
+      "2340 Jackson Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/25336-San-Francisco-Public-Montessori-School/"
+    ],
+    [
+      "Aptos Middle School",
+      7,
+      "105 Aptos Avenue, San Francisco, CA, 94127",
+      "https://www.greatschools.org/california/san-francisco/6337-Aptos-Middle-School/"
+    ],
+    [
+      "Burton (Phillip And Sala) Academic High School",
+      7,
+      "400 Mansell Street, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6344-Burton-Phillip-And-Sala-Academic-High-School/"
+    ],
+    [
+      "Chin (John Yehall) Elementary School",
+      7,
+      "350 Broadway, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/6349-Chin-John-Yehall-Elementary-School/"
+    ],
+    [
+      "Dolores Huerta Elementary School",
+      7,
+      "65 Chenery Street, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6364-Fairmount-Elementary-School/"
+    ],
+    [
+      "Galileo High School",
+      7,
+      "1150 Francisco Street, San Francisco, CA, 94109",
+      "https://www.greatschools.org/california/san-francisco/6369-Galileo-High-School/"
+    ],
+    [
+      "Hoover (Herbert) Middle School",
+      7,
+      "2290 14th Avenue, San Francisco, CA, 94116",
+      "https://www.greatschools.org/california/san-francisco/6378-Hoover-Herbert-Middle-School/"
+    ],
+    [
+      "Lafayette Elementary School",
+      7,
+      "4545 Anza Street, San Francisco, CA, 94121",
+      "https://www.greatschools.org/california/san-francisco/6387-Lafayette-Elementary-School/"
+    ],
+    [
+      "Lakeshore Alternative Elementary School",
+      7,
+      "220 Middlefield Drive, San Francisco, CA, 94132",
+      "https://www.greatschools.org/california/san-francisco/6388-Lakeshore-Alternative-Elementary-School/"
+    ],
+    [
+      "Marina Middle School",
+      7,
+      "3500 Fillmore Street, San Francisco, CA, 94123",
+      "https://www.greatschools.org/california/san-francisco/6400-Marina-Middle-School/"
+    ],
+    [
+      "Ortega (Jose) Elementary School",
+      7,
+      "400 Sargent Street, San Francisco, CA, 94132",
+      "https://www.greatschools.org/california/san-francisco/6418-Ortega-Jose-Elementary-School/"
+    ],
+    [
+      "Sutro Elementary School",
+      7,
+      "235 12th Avenue, San Francisco, CA, 94118",
+      "https://www.greatschools.org/california/san-francisco/6439-Sutro-Elementary-School/"
+    ],
+    [
+      "Wallenberg (Raoul) Traditional High School",
+      7,
+      "40 Vega Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/6449-Wallenberg-Raoul-Traditional-High-School/"
+    ],
+    [
+      "Gateway Middle School",
+      6,
+      "1512 Golden Gate Avenue, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/25633-Gateway-Middle-School/"
+    ],
+    [
+      "Brown Jr. (Willie L) Middle",
+      6,
+      "2055 Silver Ave., San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/32187-Brown-Jr.-Willie-L-Middle/"
+    ],
+    [
+      "Edison Charter Academy",
+      6,
+      "3531 22nd Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/12048-Edison-Charter-Academy/"
+    ],
+    [
+      "Glen Park Elementary School",
+      6,
+      "151 Lippard Avenue, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6373-Glen-Park-Elementary-School/"
+    ],
+    [
+      "Milk (Harvey) Civil Rights Elementary School",
+      6,
+      "4235 19th Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6408-Milk-Harvey-Civil-Rights-Elementary-School/"
+    ],
+    [
+      "Miraloma Elementary School",
+      6,
+      "175 Omar Way, San Francisco, CA, 94127",
+      "https://www.greatschools.org/california/san-francisco/6409-Miraloma-Elementary-School/"
+    ],
+    [
+      "Muir (John) Elementary School",
+      6,
+      "380 Webster Street, San Francisco, CA, 94117",
+      "https://www.greatschools.org/california/san-francisco/6414-Muir-John-Elementary-School/"
+    ],
+    [
+      "Parker (Jean) Elementary School",
+      6,
+      "840 Broadway, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/6419-Parker-Jean-Elementary-School/"
+    ],
+    [
+      "Parks (Rosa) Elementary School",
+      6,
+      "1501 O'Farrell Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/6420-Parks-Rosa-Elementary-School/"
+    ],
+    [
+      "Sherman Elementary School",
+      6,
+      "1651 Union Street, San Francisco, CA, 94123",
+      "https://www.greatschools.org/california/san-francisco/6432-Sherman-Elementary-School/"
+    ],
+    [
+      "Sloat (Commodore) Elementary School",
+      6,
+      "50 Darien Way, San Francisco, CA, 94127",
+      "https://www.greatschools.org/california/san-francisco/6433-Sloat-Commodore-Elementary-School/"
+    ],
+    [
+      "King (Starr) Elementary School",
+      6,
+      "1215 Carolina Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-francisco/6435-King-Starr-Elementary-School/"
+    ],
+    [
+      "Taylor (Edward R.) Elementary School",
+      6,
+      "423 Burrows Street, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6441-Taylor-Edward-R.-Elementary-School/"
+    ],
+    [
+      "KIPP Bayview Elementary",
+      5,
+      "948 Hollister Avenue, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/33328-KIPP-Bayview-Elementary/"
+    ],
+    [
+      "Independence High School",
+      5,
+      "1350 7th Avenue, San Francisco, CA, 94122",
+      "https://www.greatschools.org/california/san-francisco/11136-Independence-High-School/"
+    ],
+    [
+      "City Arts & Leadership Academy",
+      5,
+      "350 Seneca Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/13756-City-Arts-And-Tech-High-School/"
+    ],
+    [
+      "Francisco Middle School",
+      5,
+      "2190 Powell Street, San Francisco, CA, 94133",
+      "https://www.greatschools.org/california/san-francisco/6367-Francisco-Middle-School/"
+    ],
+    [
+      "Guadalupe Elementary School",
+      5,
+      "859 Prague Street, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6376-Guadalupe-Elementary-School/"
+    ],
+    [
+      "Malcolm X Academy",
+      5,
+      "350 Harbor Road, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/6398-Malcolm-X-Academy/"
+    ],
+    [
+      "San Francisco Community Alternative School",
+      5,
+      "125 Excelsior Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6430-San-Francisco-Community-Alternative-School/"
+    ],
+    [
+      "Bryant Elementary School",
+      4,
+      "2641 25th Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6341-Bryant-Elementary-School/"
+    ],
+    [
+      "Denman (James) Middle School",
+      4,
+      "241 Oneida Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6358-Denman-James-Middle-School/"
+    ],
+    [
+      "Drew (Charles) College Preparatory Academy",
+      4,
+      "50 Pomona Street, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/6360-Drew-Charles-College-Preparatory-Academy/"
+    ],
+    [
+      "Flynn (Leonard R.) Elementary School",
+      4,
+      "3125 Cesar Chavez Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6366-Flynn-Leonard-R.-Elementary-School/"
+    ],
+    [
+      "Longfellow Elementary School",
+      4,
+      "755 Morse Street, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6396-Longfellow-Elementary-School/"
+    ],
+    [
+      "O'Connell (John) High School",
+      4,
+      "2355 Folsom Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6417-Oconnell-John-High-School/"
+    ],
+    [
+      "Spring Valley Elementary School",
+      4,
+      "1451 Jackson Street, San Francisco, CA, 94109",
+      "https://www.greatschools.org/california/san-francisco/6434-Spring-Valley-Elementary-School/"
+    ],
+    [
+      "S.F. County Opportunity (Hilltop) School",
+      3,
+      "1325 Florida Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/11135-S.F.-County-Opportunity-Hilltop-School/"
+    ],
+    [
+      "Jordan (June) School For Equity",
+      3,
+      "325 La Grande Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/12283-Jordan-June-School-For-Equity/"
+    ],
+    [
+      "Five Keys Independence High School (Sf Sheriff's)",
+      3,
+      "70 Oak Grove Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-francisco/24794-Five-Keys-Independence-High-School-Sf-Sheriffs/"
+    ],
+    [
+      "Chavez (Cesar) Elementary School",
+      3,
+      "825 Shotwell Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6348-Chavez-Cesar-Elementary-School/"
+    ],
+    [
+      "Cleveland Elementary School",
+      3,
+      "455 Athens Street, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6352-Cleveland-Elementary-School/"
+    ],
+    [
+      "Cobb (William L.) Elementary School",
+      3,
+      "2725 California Street, San Francisco, CA, 94115",
+      "https://www.greatschools.org/california/san-francisco/6353-Cobb-William-L.-Elementary-School/"
+    ],
+    [
+      "Hillcrest Elementary School",
+      3,
+      "810 Silver Avenue, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6379-Hillcrest-Elementary-School/"
+    ],
+    [
+      "King Jr. (Martin Luther) Academic Middle School",
+      3,
+      "350 Girard Street, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6386-King-Jr.-Martin-Luther-Academic-Middle-School/"
+    ],
+    [
+      "Buena Vista/ Horace Mann K-8",
+      3,
+      "3351 23rd Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6399-Buena-Vista--Horace-Mann-K-8/"
+    ],
+    [
+      "Mission High School",
+      3,
+      "3750 18th Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6411-Mission-High-School/"
+    ],
+    [
+      "Moscone (George R.) Elementary School",
+      3,
+      "2576 Harrison Street, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6413-Moscone-George-R.-Elementary-School/"
+    ],
+    [
+      "Sheridan Elementary School",
+      3,
+      "431 Capitol Avenue, San Francisco, CA, 94112",
+      "https://www.greatschools.org/california/san-francisco/6431-Sheridan-Elementary-School/"
+    ],
+    [
+      "Tenderloin Community",
+      3,
+      "627 Turk Street, San Francisco, CA, 94102",
+      "https://www.greatschools.org/california/san-francisco/6442-Tenderloin-Community/"
+    ],
+    [
+      "Visitacion Valley Elementary School",
+      3,
+      "55 Schwerin Street, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6446-Visitacion-Valley-Elementary-School/"
+    ],
+    [
+      "Visitacion Valley Middle School",
+      3,
+      "1971 Visitacion Avenue, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6447-Visitacion-Valley-Middle-School/"
+    ],
+    [
+      "S.F. International High School",
+      2,
+      "655 De Haro Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-francisco/25018-S.F.-International-High-School/"
+    ],
+    [
+      "Bessie Carmichael School PreK-8 Filipino Education Center",
+      2,
+      "375 7th Street, San Francisco, CA, 94103",
+      "https://www.greatschools.org/california/san-francisco/6346-Carmichael-Bessie-Fec/"
+    ],
+    [
+      "Harte (Bret) Elementary School",
+      2,
+      "1035 Gilman Avenue, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/6377-Harte-Bret-Elementary-School/"
+    ],
+    [
+      "Lick (James) Middle School",
+      2,
+      "1220 Noe Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6392-Lick-James-Middle-School/"
+    ],
+    [
+      "Life Learning Academy Charter",
+      2,
+      "651 Eighth St. Bldg. 229 Treasure Island, San Francisco, CA, 94130",
+      "https://www.greatschools.org/california/san-francisco/6393-Life-Learning-Academy-Charter/"
+    ],
+    [
+      "Marshall Elementary School",
+      2,
+      "1575 15th Street, San Francisco, CA, 94103",
+      "https://www.greatschools.org/california/san-francisco/6403-Marshall-Elementary-School/"
+    ],
+    [
+      "Marshall (Thurgood) High School",
+      2,
+      "45 Conkling Street, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/6404-Marshall-Thurgood-High-School/"
+    ],
+    [
+      "Redding Elementary School",
+      2,
+      "1421 Pine Street, San Francisco, CA, 94109",
+      "https://www.greatschools.org/california/san-francisco/6424-Redding-Elementary-School/"
+    ],
+    [
+      "Revere (Paul) Elementary School",
+      2,
+      "555 Tompkins Avenue, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6425-Revere-Paul-Elementary-School/"
+    ],
+    [
+      "Sanchez Elementary School",
+      2,
+      "325 Sanchez Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6428-Sanchez-Elementary-School/"
+    ],
+    [
+      "Serra (Junipero) Elementary School",
+      2,
+      "625 Holly Park Circle, San Francisco, CA, 94110",
+      "https://www.greatschools.org/california/san-francisco/6429-Serra-Junipero-Elementary-School/"
+    ],
+    [
+      "Wells (Ida B.) High School",
+      2,
+      "1099 Hayes Street, San Francisco, CA, 94117",
+      "https://www.greatschools.org/california/san-francisco/6452-Wells-Ida-B.-High-School/"
+    ],
+    [
+      "S.F. County Civic Center Secondary",
+      1,
+      "727 Golden Gate Avenue, San Francisco, CA, 94102",
+      "https://www.greatschools.org/california/san-francisco/13785-S.F.-County-Civic-Center-Secondary/"
+    ],
+    [
+      "Carver (George Washington) Elementary School",
+      1,
+      "1360 Oakdale Avenue, San Francisco, CA, 94124",
+      "https://www.greatschools.org/california/san-francisco/6347-Carver-George-Washington-Elementary-School/"
+    ],
+    [
+      "Downtown High School",
+      1,
+      "693 Vermont Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-francisco/6359-Downtown-High-School/"
+    ],
+    [
+      "El Dorado Elementary School",
+      1,
+      "70 Delta Street, San Francisco, CA, 94134",
+      "https://www.greatschools.org/california/san-francisco/6362-El-Dorado-Elementary-School/"
+    ],
+    [
+      "Everett Middle School",
+      1,
+      "450 Church Street, San Francisco, CA, 94114",
+      "https://www.greatschools.org/california/san-francisco/6363-Everett-Middle-School/"
+    ],
+    [
+      "Mission Education Center",
+      1,
+      "1670 Noe Street, San Francisco, CA, 94131",
+      "https://www.greatschools.org/california/san-francisco/6410-Mission-Education-Center/"
+    ],
+    [
+      "Five Keys Charter (SF Sheriff's) School",
+      1,
+      "70 Oak Grove Street, San Francisco, CA, 94107",
+      "https://www.greatschools.org/california/san-bruno/12372-Five-Keys-Charter-SF-SheriffS-School/"
+    ]
+  ]
+}

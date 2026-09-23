@@ -1,0 +1,33 @@
+<html>
+<head>
+<meta charset="utf-8">
+<title>CA Department of Education Block</title>
+<link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:700&amp;display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1"><style type="text/css">.page-header:not(.vertical) .item {display: flex;margin-top: 18px;}.page-header {padding: 0;padding-left: 16px;padding-right: 32px;margin-bottom: 0 !important;position: fixed;top: 0;width: 100%;z-index: 3;height: 50px;font-size: 14px;border: 1px solid #EEEEEE;background: #fff;box-shadow: 0 1px 2px 0 rgba(0,0,0,.15)!important;}h3.header {font-family:'Roboto Condensed';font-size:16px!important;color: #000;letter-spacing: 0;text-transform: none;line-height: 1.28571429em;font-weight: 700;margin: 4px 0 4px;padding: 0 0;}.logo {width: 39px;float: left;}.container {position: relative;z-index: 0;display: flex;background: #f5f5f5;height: 100vh;padding-top: 50px;margin-top: 54px;}.displayWrapper {max-width: 640px;height: 100%;flex-direction: column;margin: 0 auto;}.widget {padding: 24px 32px;box-shadow: 0 1px 2px 0 rgba(0,0,0,.15)!important;position: relative;background: #fff;min-width: 550px;border-radius: 0;border: 1px solid rgba(34,36,38,.15);display: block;max-width: 100%!important;overflow: visible;min-height: 100px;width: 100% !important;}.blocked-img {width:170px;height:170px;margin:auto;padding-bottom:50px;}.text {color: #000000;font-family:arial;sans-serif;font-size: 16px;line-height:20px;text-align:center;padding-bottom:20px;}.header-text {font-family:'Roboto Condensed';font-weight: 700;font-size: 26px;color: #000000;line-height:18px;text-align:center;padding-bottom:20px;}</style>
+</head>
+<body>
+<div class="page-header ui borderless DoIC60Wha8mCbpkO6nLCR raised menu"><div class="item"></div></div><div class="container"><div class="displayWrapper"><div class="widget">
+
+<p style="text-align:center;"><img src="https://www.cde.ca.gov/images/cdeLogoBaseWebapp-faded.gif" alt="Logo"></p>
+
+<h1 class="header-text">Web Request Blocked</h1>
+
+<div class="text">The California Department of Education (CDE) has blocked the web request.</div>
+<div class="text" style="padding-bottom:2px;">Please contact the CDE program office if you believe the block was an error, and provide the information provided below to assist with the problem resolution.</div>
+<hr/>
+<div class="text">Support ID for the blocked request: <strong><script language="javascript">if ((new URL(window.location.href)).searchParams.get("_event_transid") !== undefined) document.write((new URL(window.location.href)).searchParams.get("_event_transid"));</script></strong></div>
+<div class="text">Current Date and Time: <span id='date-time'></span></div>
+<!-- <div class="text">Blocked URL: <span id='pageurl'></span></div> -->
+<script>
+var dt = new Date();
+document.getElementById('date-time').innerHTML=dt;
+</script>
+
+<script>
+document.getElementById("pageurl").innerHTML = document.referrer;
+</script>
+
+<br/><a href="javascript:history.back()">[Go Back]</a>
+
+</body>
+</html>
