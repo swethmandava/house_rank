@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -9,7 +10,8 @@ import {
 import { db } from '@/lib/firebase';
 import type { House, HouseRankerSettings } from '@/lib/house-ranker';
 
-const COLLECTION_NAME = 'games';
+const COLLECTION_NAME = 'house-rankers';
+const LEGACY_COLLECTION_NAME = 'games';
 const BOARD_ID_PATTERN = /^[a-zA-Z0-9_-]{6,64}$/;
 
 export type HouseRankerBoard = {
@@ -22,7 +24,11 @@ function getBoardDocument(boardId: string) {
   if (!BOARD_ID_PATTERN.test(boardId)) {
     throw new Error('Invalid board ID');
   }
-  return doc(collection(db, COLLECTION_NAME), `house-ranker-${boardId}`);
+  return doc(collection(db, COLLECTION_NAME), boardId);
+}
+
+function getLegacyBoardDocument(boardId: string) {
+  return doc(collection(db, LEGACY_COLLECTION_NAME), `house-ranker-${boardId}`);
 }
 
 function withoutUndefined<T>(data: T): T {
@@ -54,11 +60,28 @@ export function subscribeToBoardState(
 ) {
   return onSnapshot(
     getBoardDocument(boardId),
-    (snapshot) => {
-      onData(
-        snapshot.data() as HouseRankerBoard | undefined,
-        snapshot.exists(),
-      );
+    async (snapshot) => {
+      if (snapshot.exists()) {
+        onData(snapshot.data() as HouseRankerBoard, true);
+        return;
+      }
+
+      try {
+        const legacySnapshot = await getDoc(getLegacyBoardDocument(boardId));
+        if (!legacySnapshot.exists()) {
+          onData(undefined, false);
+          return;
+        }
+
+        await setDoc(getBoardDocument(boardId), {
+          ...withoutUndefined(legacySnapshot.data() as HouseRankerBoard),
+          updatedAt: serverTimestamp(),
+        });
+      } catch (error) {
+        onError?.(
+          error instanceof Error ? error : new Error('Failed to load board'),
+        );
+      }
     },
     onError,
   );
