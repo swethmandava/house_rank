@@ -70,68 +70,113 @@ export async function POST(request: Request) {
     );
     const timezoneOffset =
       typeof body.timezoneOffset === 'number' ? body.timezoneOffset : 0;
+    let persistQueue = Promise.resolve();
+
+    const persistHouseResult = (
+      houseId: string,
+      grade: AutoGradeResponse | undefined,
+    ) => {
+      const operation = persistQueue.then(async () => {
+        const latestBoard = await getBoardState(body.boardId as string);
+        if (
+          !latestBoard ||
+          gradingSettingsKey(normalizeSettings(latestBoard.settings)) !==
+            settingsKey ||
+          latestBoard.regrade?.settingsKey !== settingsKey ||
+          latestBoard.regrade.startedAt !== startedAt
+        ) {
+          return;
+        }
+
+        const pendingHouseIds = latestBoard.regrade.pendingHouseIds.filter(
+          (pendingHouseId) => pendingHouseId !== houseId,
+        );
+        const previousFailures = latestBoard.regrade.failedHouseIds ?? [];
+        const failedHouseIds = grade
+          ? previousFailures.filter(
+              (failedHouseId) => failedHouseId !== houseId,
+            )
+          : [...new Set([...previousFailures, houseId])];
+        const status = pendingHouseIds.length
+          ? ('running' as const)
+          : failedHouseIds.length
+            ? ('partial' as const)
+            : ('complete' as const);
+
+        await mergeBoardState(body.boardId as string, {
+          houses: grade
+            ? latestBoard.houses.map((house) =>
+                house.id === houseId
+                  ? applyAutoGradeResult(house, grade, settings)
+                  : house,
+              )
+            : latestBoard.houses,
+          regrade: {
+            settingsKey,
+            status,
+            pendingHouseIds,
+            failedHouseIds,
+            startedAt,
+            ...(status === 'running' ? {} : { completedAt: Date.now() }),
+          },
+        });
+      });
+      persistQueue = operation.catch(() => undefined);
+      return operation;
+    };
+
+    if (!houses.length) {
+      await mergeBoardState(body.boardId, {
+        regrade: {
+          settingsKey,
+          status: 'complete',
+          pendingHouseIds: [],
+          failedHouseIds: [],
+          startedAt,
+          completedAt: Date.now(),
+        },
+      });
+      return Response.json({ status: 'complete' });
+    }
+
     const results = await Promise.allSettled(
       houses.map(async (house) => {
-        const result = await handleAutoGradeRequest({
-          houseAddress: house.name,
-          listingUrl: house.listingUrl,
-          notes: house.notes,
-          commute: settings.commute,
-          walkability: settings.walkability,
-          schools: settings.schools,
-          subjectiveCriteria,
-          timeZoneOffsetMinutes: timezoneOffset,
-        });
-        const grade = result.body as AutoGradeResponse;
-        if (result.status !== 200 || grade.error) {
-          throw new Error(grade.error || 'Automatic grading failed');
+        let grade: AutoGradeResponse | undefined;
+        try {
+          const result = await handleAutoGradeRequest({
+            houseAddress: house.name,
+            listingUrl: house.listingUrl,
+            notes: house.notes,
+            commute: settings.commute,
+            walkability: settings.walkability,
+            schools: settings.schools,
+            subjectiveCriteria,
+            timeZoneOffsetMinutes: timezoneOffset,
+          });
+          grade = result.body as AutoGradeResponse;
+          if (result.status !== 200 || grade.error) {
+            throw new Error(grade.error || 'Automatic grading failed');
+          }
+        } catch {
+          grade = undefined;
         }
-        return grade;
+        await persistHouseResult(house.id, grade);
       }),
     );
+    const writeFailure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (writeFailure) throw writeFailure.reason;
 
     const latestBoard = await getBoardState(body.boardId);
-    if (!latestBoard) {
-      return Response.json({ error: 'Board not found' }, { status: 404 });
-    }
     if (
-      gradingSettingsKey(normalizeSettings(latestBoard.settings)) !==
-        settingsKey ||
+      !latestBoard ||
       latestBoard.regrade?.settingsKey !== settingsKey ||
       latestBoard.regrade.startedAt !== startedAt
     ) {
       return Response.json({ status: 'superseded' }, { status: 202 });
     }
-
-    const gradesByHouseId = new Map<string, AutoGradeResponse>();
-    const failedHouseIds: string[] = [];
-    results.forEach((result, index) => {
-      const houseId = houses[index].id;
-      if (result.status === 'fulfilled') {
-        gradesByHouseId.set(houseId, result.value);
-      } else {
-        failedHouseIds.push(houseId);
-      }
-    });
-    const updatedHouses = latestBoard.houses.map((house) => {
-      const grade = gradesByHouseId.get(house.id);
-      return grade ? applyAutoGradeResult(house, grade, settings) : house;
-    });
-    await mergeBoardState(body.boardId, {
-      houses: updatedHouses,
-      regrade: {
-        settingsKey,
-        status: failedHouseIds.length ? 'partial' : 'complete',
-        pendingHouseIds: [],
-        failedHouseIds,
-        startedAt,
-        completedAt: Date.now(),
-      },
-    });
-
-    return Response.json({
-      status: failedHouseIds.length ? 'partial' : 'complete',
-    });
+    return Response.json({ status: latestBoard.regrade.status });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Could not regrade this board';
