@@ -64,10 +64,14 @@ def join_address(street, city, state, zip_code):
     return ", ".join(values)
 
 
-def private_school_type(row):
+def private_active_grades(row):
     grade_columns = ["Grade K Enroll"] + [f"Grade {grade} Enroll" for grade in range(1, 13)]
     enrollments = [pd.to_numeric(row.get(column), errors="coerce") for column in grade_columns]
-    active = [index for index, value in enumerate(enrollments) if pd.notna(value) and value > 0]
+    return [index for index, value in enumerate(enrollments) if pd.notna(value) and value > 0]
+
+
+def private_school_type(row):
+    active = private_active_grades(row)
     if not active:
         return "Combined/Other"
     low, high = min(active), max(active)
@@ -82,6 +86,14 @@ def private_school_type(row):
     if low >= 6 and high >= 9:
         return "Middle/High School"
     return "K-12/Combined School"
+
+
+def private_grade_span(row):
+    active = private_active_grades(row)
+    if not active:
+        return "", ""
+    low, high = min(active), max(active)
+    return ("KG" if low == 0 else f"{low:02d}"), ("KG" if high == 0 else f"{high:02d}")
 
 
 def load_dashboard_scores():
@@ -213,6 +225,8 @@ def build_public_rows():
                 "address": record["full_address"],
                 "public_vs_private": "Public",
                 "school_type": level_names.get(record["School Level"], str(record["School Level"]).strip()),
+                "grade_low": str(record["Grade Low"]).strip(),
+                "grade_high": str(record["Grade High"]).strip(),
                 "greatschools_rating": rating,
                 "greatschools_rating_as_of": rating_as_of,
                 "greatschools_profile_url": profile_url,
@@ -267,12 +281,15 @@ def build_private_rows():
             rating = None
             detail = "No teachers reported; staffing proxy unavailable"
             basis = "2025-26 CDE staffing proxy"
+        grade_low, grade_high = private_grade_span(record)
         rows.append(
             {
                 "school": str(record["School Name"]).strip(),
                 "address": location_map.get(cds, ""),
                 "public_vs_private": "Private",
                 "school_type": private_school_type(record),
+                "grade_low": grade_low,
+                "grade_high": grade_high,
                 "greatschools_rating": None,
                 "greatschools_rating_as_of": "",
                 "greatschools_profile_url": "",

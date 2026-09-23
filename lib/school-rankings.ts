@@ -7,6 +7,8 @@ export type K12SchoolRecord = {
   name: string;
   publicVsPrivate: 'Public' | 'Private';
   schoolType: string;
+  gradeLow: number | null;
+  gradeHigh: number | null;
   greatSchoolsRating: number | null;
   greatSchoolsProfileUrl: string | null;
   privateStaffingProxyRating: number | null;
@@ -25,6 +27,7 @@ export type PreschoolRecord = {
 export type SchoolMatch = {
   name: string;
   sector: SchoolSector | 'preschool';
+  gradeSpan?: string | null;
   distanceMiles: number;
   driveMinutes: number;
   ratingBand: string;
@@ -35,6 +38,7 @@ export type SchoolMatch = {
 };
 
 export type SchoolLevelMatches = {
+  dataVersion: number;
   levelCode: SchoolLevelCode;
   levelLabel: string;
   includedSectors: SchoolSector[];
@@ -52,6 +56,8 @@ export type SchoolLevelMatches = {
   bestPrivate: SchoolMatch | null;
   bestPreschool: SchoolMatch | null;
 };
+
+export const SCHOOL_DATA_VERSION = 2;
 
 export type SchoolRankingResult = {
   matchesByLevel: SchoolLevelMatches[];
@@ -113,7 +119,7 @@ export function rankNearbySchools(
                 (school) =>
                   school.publicVsPrivate ===
                     (sector === 'public' ? 'Public' : 'Private') &&
-                  schoolCoversLevel(school.schoolType, levelCode),
+                  schoolCoversLevel(school, levelCode),
               )
               .map((school) =>
                 createK12Match(home, maximumCandidateDistance, school, sector),
@@ -163,9 +169,21 @@ export function rerankSchoolsWithDriveTimes(
 }
 
 export function schoolCoversLevel(
-  schoolType: string,
+  school:
+    | string
+    | Pick<K12SchoolRecord, 'schoolType' | 'gradeLow' | 'gradeHigh'>,
   levelCode: Exclude<SchoolLevelCode, 'p'>,
 ) {
+  const schoolType = typeof school === 'string' ? school : school.schoolType;
+  if (
+    typeof school !== 'string' &&
+    school.gradeLow !== null &&
+    school.gradeHigh !== null
+  ) {
+    const [levelLow, levelHigh] =
+      levelCode === 'e' ? [0, 5] : levelCode === 'm' ? [6, 8] : [9, 12];
+    return school.gradeLow <= levelHigh && school.gradeHigh >= levelLow;
+  }
   if (schoolType === 'K-12/Combined School') return true;
   if (levelCode === 'e') {
     return (
@@ -204,6 +222,7 @@ function createK12Match(
   return {
     name: school.name,
     sector,
+    gradeSpan: formatGradeSpan(school.gradeLow, school.gradeHigh),
     distanceMiles: roundDistance(distanceMiles),
     driveMinutes,
     ratingBand:
@@ -219,6 +238,13 @@ function createK12Match(
     overviewUrl: sector === 'public' ? school.greatSchoolsProfileUrl : null,
     coordinates: { lat: school.latitude, lng: school.longitude },
   };
+}
+
+function formatGradeSpan(low: number | null, high: number | null) {
+  if (low === null || high === null) return null;
+  const label = (grade: number) =>
+    grade < 0 ? 'PK' : grade === 0 ? 'K' : `${grade}`;
+  return `${label(low)}–${label(high)}`;
 }
 
 function createPreschoolMatch(
@@ -276,6 +302,7 @@ function finalizeLevel(
   const bestSuitable = [...suitableOptions].sort(compareAccess)[0] ?? null;
 
   return {
+    dataVersion: SCHOOL_DATA_VERSION,
     levelCode,
     levelLabel: levelLabels[levelCode],
     includedSectors,

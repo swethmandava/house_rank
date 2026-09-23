@@ -93,6 +93,7 @@ import {
 import { useBoardId } from '@/hooks/use-board-id';
 import { setBoardState, subscribeToBoardState } from '@/lib/house-ranker-store';
 import { readJsonResponse } from '@/lib/http';
+import { SCHOOL_DATA_VERSION } from '@/lib/school-rankings';
 
 type ModelContext = {
   registerTool: (
@@ -405,6 +406,7 @@ function schoolResultsMatchSettings(
     expectedLevels === resultLevels &&
     levels.every(
       (level) =>
+        level.dataVersion === SCHOOL_DATA_VERSION &&
         level.minimumRating === settings.minimumRating &&
         level.maxTravelMinutes === settings.maxTravelMinutes &&
         [...(level.includedSectors ?? [])].sort().join(',') === expectedSectors,
@@ -491,6 +493,7 @@ function SchoolMatchSummary({ match }: { match: SchoolMatch | null }) {
     <span className="block min-w-0">
       <span className="block font-medium text-foreground">{match.name}</span>
       <span className="block text-[11px] leading-4 text-muted-foreground">
+        {match.gradeSpan ? `Grades ${match.gradeSpan} · ` : ''}
         {travel} · {schoolRatingLabel(match)}
       </span>
     </span>
@@ -2050,24 +2053,44 @@ function ScoreDetailCard({
         <div className="mt-4 overflow-hidden rounded-xl border bg-secondary/25">
           <Table className="min-w-[780px] table-fixed text-xs">
             <TableHeader className="bg-secondary/70">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="h-9 w-[13%] px-3 text-[11px] text-muted-foreground">
+              <TableRow className="border-b-0 hover:bg-transparent">
+                <TableHead
+                  rowSpan={2}
+                  className="h-9 w-[14%] px-3 text-[11px] text-muted-foreground"
+                >
                   Level
                 </TableHead>
-                <TableHead className="h-9 w-[13%] px-2 text-[11px] text-muted-foreground">
+                <TableHead
+                  rowSpan={2}
+                  className="h-9 w-[14%] px-2 text-[11px] text-muted-foreground"
+                >
                   Access
                 </TableHead>
-                <TableHead className="h-9 w-[19%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                  Closest Public
+                <TableHead
+                  colSpan={2}
+                  className="h-8 border-l px-2 text-center text-[11px] font-medium text-foreground"
+                >
+                  Public
                 </TableHead>
-                <TableHead className="h-9 w-[19%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                  Closest Private
+                <TableHead
+                  colSpan={2}
+                  className="h-8 border-l px-2 text-center text-[11px] font-medium text-foreground"
+                >
+                  Private
                 </TableHead>
-                <TableHead className="h-9 w-[18%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                  Best Public
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-8 w-[18%] border-l px-2 text-[10px] text-muted-foreground">
+                  Closest
                 </TableHead>
-                <TableHead className="h-9 w-[18%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                  Best Private
+                <TableHead className="h-8 w-[18%] px-2 text-[10px] text-muted-foreground">
+                  Best
+                </TableHead>
+                <TableHead className="h-8 w-[18%] border-l px-2 text-[10px] text-muted-foreground">
+                  Closest
+                </TableHead>
+                <TableHead className="h-8 w-[18%] px-2 text-[10px] text-muted-foreground">
+                  Best
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -2085,21 +2108,34 @@ function ScoreDetailCard({
                   {row.levelCode === 'p' ? (
                     <>
                       <TableCell
-                        colSpan={2}
-                        className="px-2 py-2.5 align-top whitespace-normal"
+                        colSpan={4}
+                        className="border-l px-3 py-2.5 align-top whitespace-normal"
                       >
-                        <SchoolMatchSummary match={row.closestAll ?? null} />
-                      </TableCell>
-                      <TableCell
-                        colSpan={2}
-                        className="px-2 py-2.5 align-top whitespace-normal"
-                      >
-                        <SchoolMatchSummary match={row.bestAll ?? null} />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Closest program
+                            </span>
+                            <SchoolMatchSummary
+                              match={row.closestAll ?? null}
+                            />
+                          </div>
+                          <div>
+                            <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Best program
+                            </span>
+                            <SchoolMatchSummary match={row.bestAll ?? null} />
+                          </div>
+                          <span className="col-span-2 text-[10px] text-muted-foreground">
+                            Preschool programs are not classified as public or
+                            private.
+                          </span>
+                        </div>
                       </TableCell>
                     </>
                   ) : (
                     <>
-                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                      <TableCell className="border-l px-2 py-2.5 align-top whitespace-normal">
                         {row.closestText ? (
                           <span className="text-muted-foreground">
                             {row.closestText}
@@ -2109,9 +2145,6 @@ function ScoreDetailCard({
                         )}
                       </TableCell>
                       <TableCell className="px-2 py-2.5 align-top whitespace-normal">
-                        <SchoolMatchSummary match={row.closestPrivate} />
-                      </TableCell>
-                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
                         {row.bestText ? (
                           <span className="text-muted-foreground">
                             {row.bestText}
@@ -2119,6 +2152,9 @@ function ScoreDetailCard({
                         ) : (
                           <SchoolMatchSummary match={row.bestPublic} />
                         )}
+                      </TableCell>
+                      <TableCell className="border-l px-2 py-2.5 align-top whitespace-normal">
+                        <SchoolMatchSummary match={row.closestPrivate} />
                       </TableCell>
                       <TableCell className="px-2 py-2.5 align-top whitespace-normal">
                         <SchoolMatchSummary match={row.bestPrivate} />

@@ -13,6 +13,8 @@ export function parseK12SchoolData(input: string): K12SchoolRecord[] {
         name: row.school,
         publicVsPrivate: row.public_vs_private,
         schoolType: row.school_type,
+        gradeLow: optionalGrade(row.grade_low),
+        gradeHigh: optionalGrade(row.grade_high),
         greatSchoolsRating: optionalNumber(row.greatschools_rating),
         greatSchoolsProfileUrl: optionalUrl(row.greatschools_profile_url),
         privateStaffingProxyRating: optionalNumber(
@@ -94,6 +96,19 @@ function optionalNumber(value: string) {
   if (!value.trim()) return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid number: ${value}`);
+  return parsed;
+}
+
+function optionalGrade(value = '') {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'PK' || normalized === 'P') return -1;
+  if (normalized === 'TK' || normalized === 'KG' || normalized === 'K')
+    return 0;
+  const parsed = Number(normalized);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 12) {
+    throw new Error(`Invalid grade: ${value}`);
+  }
   return parsed;
 }
 
