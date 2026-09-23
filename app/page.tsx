@@ -2108,29 +2108,18 @@ function ScoreDetailCard({
                   {row.levelCode === 'p' ? (
                     <>
                       <TableCell
-                        colSpan={4}
-                        className="border-l px-3 py-2.5 align-top whitespace-normal"
-                      >
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Closest program
-                            </span>
-                            <SchoolMatchSummary
-                              match={row.closestAll ?? null}
-                            />
-                          </div>
-                          <div>
-                            <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Best program
-                            </span>
-                            <SchoolMatchSummary match={row.bestAll ?? null} />
-                          </div>
-                          <span className="col-span-2 text-[10px] text-muted-foreground">
-                            Preschool programs are not classified as public or
-                            private.
-                          </span>
-                        </div>
+                        className="border-l px-2 py-2.5"
+                        aria-label="No public preschool result"
+                      />
+                      <TableCell
+                        className="px-2 py-2.5"
+                        aria-label="No public preschool result"
+                      />
+                      <TableCell className="border-l px-2 py-2.5 align-top whitespace-normal">
+                        <SchoolMatchSummary match={row.closestAll ?? null} />
+                      </TableCell>
+                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                        <SchoolMatchSummary match={row.bestAll ?? null} />
                       </TableCell>
                     </>
                   ) : (
