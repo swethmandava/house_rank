@@ -37,6 +37,7 @@ export type SchoolMatch = {
 export type SchoolLevelMatches = {
   levelCode: SchoolLevelCode;
   levelLabel: string;
+  includedSectors: SchoolSector[];
   maxTravelMinutes: number;
   minimumRating: number;
   levelScore: number;
@@ -45,6 +46,8 @@ export type SchoolLevelMatches = {
   bestReachable: SchoolMatch | null;
   topOptions: SchoolMatch[];
   candidateOptions: SchoolMatch[];
+  closestPublic: SchoolMatch | null;
+  closestPrivate: SchoolMatch | null;
   bestPublic: SchoolMatch | null;
   bestPrivate: SchoolMatch | null;
   bestPreschool: SchoolMatch | null;
@@ -103,7 +106,7 @@ export function rankNearbySchools(
               )
               .filter((match): match is SchoolMatch => match !== null),
           )
-        : sectors.flatMap((sector) => {
+        : (['public', 'private'] as const).flatMap((sector) => {
             const matches = schools
               .filter(
                 (school) =>
@@ -123,6 +126,7 @@ export function rankNearbySchools(
       deduplicateMatches(candidateOptions),
       maxTravelMinutes,
       minimumRating,
+      sectors,
     );
   });
 
@@ -145,6 +149,7 @@ export function rerankSchoolsWithDriveTimes(
       candidateOptions,
       ranking.maxTravelMinutes,
       ranking.minimumRating,
+      level.includedSectors,
     );
   });
   return finalizeRanking(
@@ -203,10 +208,10 @@ function createK12Match(
       sourceRating === null
         ? sector === 'public'
           ? 'GreatSchools rating unavailable'
-          : 'Private staffing proxy unavailable'
+          : 'Proxy Score unavailable'
         : sector === 'public'
           ? `GreatSchools ${formatScore(sourceRating)}/10`
-          : `Private staffing proxy ${formatScore(sourceRating)}/10`,
+          : `Proxy Score ${formatScore(sourceRating)}/10`,
     qualityScore,
     accessScore: accessScore(qualityScore, driveMinutes),
     overviewUrl: sector === 'public' ? school.greatSchoolsProfileUrl : null,
@@ -244,6 +249,7 @@ function finalizeLevel(
   candidates: SchoolMatch[],
   maxTravelMinutes: number,
   minimumRating: number,
+  includedSectors: SchoolSector[],
 ): SchoolLevelMatches {
   const reachable = candidates
     .filter(
@@ -255,8 +261,12 @@ function finalizeLevel(
       accessScore: accessScore(match.qualityScore, match.driveMinutes),
     }))
     .sort(compareAccess);
-  const topOptions = reachable.slice(0, 3);
-  const suitableOptions = reachable
+  const scoredReachable = reachable.filter(
+    (match) =>
+      match.sector === 'preschool' || includedSectors.includes(match.sector),
+  );
+  const topOptions = scoredReachable.slice(0, 3);
+  const suitableOptions = scoredReachable
     .filter((match) => (match.qualityScore ?? 0) >= minimumRating / 2)
     .sort(
       (first, second) =>
@@ -269,6 +279,7 @@ function finalizeLevel(
   return {
     levelCode,
     levelLabel: levelLabels[levelCode],
+    includedSectors,
     maxTravelMinutes,
     minimumRating,
     levelScore,
@@ -277,11 +288,29 @@ function finalizeLevel(
     bestReachable: bestSuitable,
     topOptions,
     candidateOptions: candidates,
+    closestPublic: closestBySector(reachable, 'public'),
+    closestPrivate: closestBySector(reachable, 'private'),
     bestPublic: reachable.find((match) => match.sector === 'public') ?? null,
     bestPrivate: reachable.find((match) => match.sector === 'private') ?? null,
     bestPreschool:
       reachable.find((match) => match.sector === 'preschool') ?? null,
   };
+}
+
+function closestBySector(
+  matches: SchoolMatch[],
+  sector: SchoolSector,
+): SchoolMatch | null {
+  return (
+    [...matches]
+      .filter((match) => match.sector === sector)
+      .sort(
+        (first, second) =>
+          first.driveMinutes - second.driveMinutes ||
+          first.distanceMiles - second.distanceMiles ||
+          first.name.localeCompare(second.name),
+      )[0] ?? null
+  );
 }
 
 function finalizeRanking(
@@ -376,9 +405,7 @@ function preschoolScreening(rating: string) {
   throw new Error(`Unknown preschool screening rating: ${rating}`);
 }
 
-function normalizeSectors(
-  sectors: SchoolSector[] | undefined,
-): SchoolSector[] {
+function normalizeSectors(sectors: SchoolSector[] | undefined): SchoolSector[] {
   const filtered = [...new Set(sectors ?? ['public'])].filter(
     (sector): sector is SchoolSector =>
       sector === 'public' || sector === 'private',

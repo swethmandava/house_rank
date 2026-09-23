@@ -361,7 +361,11 @@ function schoolMatchText(match: SchoolMatch) {
     typeof match.driveMinutes === 'number'
       ? `${match.driveMinutes} min`
       : `${match.distanceMiles.toFixed(1)} mi`;
-  return `${sector}${match.name} · ${travel} · ${match.ratingBand}`;
+  return `${sector}${match.name} · ${travel} · ${schoolRatingLabel(match)}`;
+}
+
+function schoolRatingLabel(match: SchoolMatch) {
+  return match.ratingBand.replace(/^Private staffing proxy/, 'Proxy Score');
 }
 
 function schoolMatchSources(matchesByLevel: SchoolLevelMatch[]) {
@@ -386,11 +390,17 @@ const schoolLevelOrder = new Map([
 ]);
 
 type SchoolEvidenceRow = {
+  levelCode?: string;
   label: string;
   access: string;
-  closest: SchoolMatch | null;
+  closestPublic: SchoolMatch | null;
+  closestPrivate: SchoolMatch | null;
+  bestPublic: SchoolMatch | null;
+  bestPrivate: SchoolMatch | null;
+  closestAll?: SchoolMatch | null;
+  bestAll?: SchoolMatch | null;
   closestText?: string;
-  best: Array<{ label: string; match: SchoolMatch | null; text?: string }>;
+  bestText?: string;
 };
 
 function schoolEvidenceRows(
@@ -405,21 +415,22 @@ function schoolEvidenceRows(
           (schoolLevelOrder.get(second.levelCode) ?? 4),
       )
       .map((level) => ({
+        levelCode: level.levelCode,
         label: level.levelLabel,
         access: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable`,
-        closest: level.closestSuitable,
-        best:
+        closestPublic:
+          level.closestPublic ??
+          (level.bestPublic?.sector === 'public' ? level.bestPublic : null),
+        closestPrivate:
+          level.closestPrivate ??
+          (level.bestPrivate?.sector === 'private' ? level.bestPrivate : null),
+        bestPublic: level.bestPublic,
+        bestPrivate: level.bestPrivate,
+        closestAll: level.levelCode === 'p' ? level.closestSuitable : undefined,
+        bestAll:
           level.levelCode === 'p'
-            ? [
-                {
-                  label: 'All',
-                  match: level.bestPreschool ?? level.bestReachable,
-                },
-              ]
-            : [
-                { label: 'Public', match: level.bestPublic },
-                { label: 'Private', match: level.bestPrivate },
-              ],
+            ? (level.bestPreschool ?? level.bestReachable)
+            : undefined,
       }));
   }
 
@@ -433,15 +444,17 @@ function schoolEvidenceRows(
     const row = rows.get(level) ?? {
       label: level,
       access: 'Not available',
-      closest: null,
-      best: [],
+      closestPublic: null,
+      closestPrivate: null,
+      bestPublic: null,
+      bestPrivate: null,
     };
     if (kind.toLowerCase() === 'access') row.access = text;
     if (kind.toLowerCase() === 'closest suitable') {
       row.closestText = text;
     }
     if (kind.toLowerCase() === 'best suitable') {
-      row.best.push({ label: 'Best', match: null, text });
+      row.bestText = text;
     }
     rows.set(level, row);
   }
@@ -455,7 +468,7 @@ function SchoolMatchSummary({ match }: { match: SchoolMatch | null }) {
     <span className="block min-w-0">
       <span className="block font-medium text-foreground">{match.name}</span>
       <span className="block text-[11px] leading-4 text-muted-foreground">
-        {travel} · {match.ratingBand}
+        {travel} · {schoolRatingLabel(match)}
       </span>
     </span>
   );
@@ -1959,20 +1972,26 @@ function ScoreDetailCard({
 
       {score !== null && criterion.id === 'schools' ? (
         <div className="mt-3 overflow-hidden rounded-xl border bg-secondary/25">
-          <Table className="table-fixed text-xs">
+          <Table className="min-w-[780px] table-fixed text-xs">
             <TableHeader className="bg-secondary/70">
               <TableRow className="hover:bg-transparent">
-                <TableHead className="h-9 w-[20%] px-3 text-[11px] text-muted-foreground">
+                <TableHead className="h-9 w-[13%] px-3 text-[11px] text-muted-foreground">
                   Level
                 </TableHead>
-                <TableHead className="h-9 w-[18%] px-2 text-[11px] text-muted-foreground">
+                <TableHead className="h-9 w-[13%] px-2 text-[11px] text-muted-foreground">
                   Access
                 </TableHead>
-                <TableHead className="h-9 w-[28%] px-2 text-[11px] text-muted-foreground">
-                  Closest
+                <TableHead className="h-9 w-[19%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                  Closest Public
                 </TableHead>
-                <TableHead className="h-9 w-[34%] px-2 text-[11px] text-muted-foreground">
-                  Best
+                <TableHead className="h-9 w-[19%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                  Closest Private
+                </TableHead>
+                <TableHead className="h-9 w-[18%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                  Best Public
+                </TableHead>
+                <TableHead className="h-9 w-[18%] px-2 text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                  Best Private
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -1987,31 +2006,49 @@ function ScoreDetailCard({
                   <TableCell className="px-2 py-2.5 align-top whitespace-normal text-muted-foreground">
                     {row.access}
                   </TableCell>
-                  <TableCell className="px-2 py-2.5 align-top whitespace-normal">
-                    {row.closestText ? (
-                      <span className="text-muted-foreground">
-                        {row.closestText}
-                      </span>
-                    ) : (
-                      <SchoolMatchSummary match={row.closest} />
-                    )}
-                  </TableCell>
-                  <TableCell className="space-y-2 px-2 py-2.5 align-top whitespace-normal">
-                    {row.best.map((option) => (
-                      <div key={option.label}>
-                        <span className="block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                          {option.label}
-                        </span>
-                        {option.text ? (
+                  {row.levelCode === 'p' ? (
+                    <>
+                      <TableCell
+                        colSpan={2}
+                        className="px-2 py-2.5 align-top whitespace-normal"
+                      >
+                        <SchoolMatchSummary match={row.closestAll ?? null} />
+                      </TableCell>
+                      <TableCell
+                        colSpan={2}
+                        className="px-2 py-2.5 align-top whitespace-normal"
+                      >
+                        <SchoolMatchSummary match={row.bestAll ?? null} />
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                        {row.closestText ? (
                           <span className="text-muted-foreground">
-                            {option.text}
+                            {row.closestText}
                           </span>
                         ) : (
-                          <SchoolMatchSummary match={option.match} />
+                          <SchoolMatchSummary match={row.closestPublic} />
                         )}
-                      </div>
-                    ))}
-                  </TableCell>
+                      </TableCell>
+                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                        <SchoolMatchSummary match={row.closestPrivate} />
+                      </TableCell>
+                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                        {row.bestText ? (
+                          <span className="text-muted-foreground">
+                            {row.bestText}
+                          </span>
+                        ) : (
+                          <SchoolMatchSummary match={row.bestPublic} />
+                        )}
+                      </TableCell>
+                      <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                        <SchoolMatchSummary match={row.bestPrivate} />
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
