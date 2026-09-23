@@ -560,6 +560,7 @@ export default function Home() {
   const [recomputingHouseId, setRecomputingHouseId] = useState<string | null>(
     null,
   );
+  const [gradingHouseIds, setGradingHouseIds] = useState<string[]>([]);
   const [recomputingCriterionKey, setRecomputingCriterionKey] = useState<
     string | null
   >(null);
@@ -943,6 +944,9 @@ export default function Home() {
     includeSubjective = true,
     requiredCriterionId?: string,
   ): Promise<{ success: boolean; score?: number }> {
+    setGradingHouseIds((current) =>
+      current.includes(house.id) ? current : [...current, house.id],
+    );
     try {
       const result = await fetch('/api/auto-grade', {
         method: 'POST',
@@ -1126,6 +1130,10 @@ export default function Home() {
     } catch {
       // A house stays pending when API credentials or network access are unavailable.
       return { success: false };
+    } finally {
+      setGradingHouseIds((current) =>
+        current.filter((houseId) => houseId !== house.id),
+      );
     }
   }
 
@@ -1464,6 +1472,7 @@ export default function Home() {
                 {visibleHouses.map((house) => {
                   const summary = houseSummary(house, activeCriteria, people);
                   const pending = summary.graded < activeCriteria.length;
+                  const isGrading = gradingHouseIds.includes(house.id);
                   const listingPrice = parsePrice(house.price);
                   const [streetAddress, ...localityParts] = house.name
                     .split(',')
@@ -1505,9 +1514,18 @@ export default function Home() {
                           <span className="mt-2 block text-[28px] font-medium tracking-[-0.05em] tabular-nums">
                             {summary.score ?? '—'}
                           </span>
-                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
+                          <span
+                            className="mt-1 inline-flex items-center gap-1 text-[11px] font-normal text-muted-foreground"
+                            aria-live="polite"
+                          >
                             {pending ? (
                               <>
+                                {isGrading && (
+                                  <LoaderCircle
+                                    className="size-3 animate-spin text-primary"
+                                    aria-hidden="true"
+                                  />
+                                )}
                                 {summary.graded} of {activeCriteria.length}{' '}
                                 graded
                               </>
@@ -1579,6 +1597,7 @@ export default function Home() {
                   houses={visibleHouses}
                   people={people}
                   expandedCriterionIds={expandedCriterionIds}
+                  gradingHouseIds={gradingHouseIds}
                   onOpenRating={openRating}
                 />
               ))}
@@ -2136,6 +2155,7 @@ function FragmentGroup({
   houses,
   people,
   expandedCriterionIds,
+  gradingHouseIds,
   onOpenRating,
 }: {
   group: 'Must-haves' | 'Nice-to-haves';
@@ -2143,6 +2163,7 @@ function FragmentGroup({
   houses: House[];
   people: HouseRankerPerson[];
   expandedCriterionIds: string[];
+  gradingHouseIds: string[];
   onOpenRating: (houseId: string, criterionId: string) => void;
 }) {
   const rows = sortCriteriaByImportance(criteria, people).filter(
@@ -2181,6 +2202,7 @@ function FragmentGroup({
             {houses.map((house) => {
               const rating = house.ratings[criterion.id];
               const score = effectiveScore(rating);
+              const isGrading = gradingHouseIds.includes(house.id);
               const isIssue =
                 people.some(
                   (person) =>
@@ -2197,30 +2219,40 @@ function FragmentGroup({
                     className={`group flex min-h-20 w-full flex-col items-center justify-center px-3 py-2 text-sm font-medium tabular-nums transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isIssue ? 'text-destructive' : ''}`}
                     onClick={() => onOpenRating(house.id, criterion.id)}
                   >
-                    <span className="flex min-h-11 w-full max-w-[240px] items-center gap-3 rounded-xl px-3">
-                      <span
-                        className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10"
-                        aria-hidden="true"
-                      >
-                        {score !== null && (
-                          <span
-                            className={`block h-full rounded-full transition-[width] duration-300 ${scoreBarColor(score)}`}
-                            style={{ width: `${(score / 5) * 100}%` }}
+                    {score === null && isGrading ? (
+                      <output className="flex min-h-11 w-full items-center justify-center gap-2 px-3 text-xs font-normal text-muted-foreground">
+                        <LoaderCircle
+                          className="size-3.5 animate-spin text-primary"
+                          aria-hidden="true"
+                        />
+                        Calculating grade
+                      </output>
+                    ) : (
+                      <span className="flex min-h-11 w-full max-w-[240px] items-center gap-3 rounded-xl px-3">
+                        <span
+                          className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10"
+                          aria-hidden="true"
+                        >
+                          {score !== null && (
+                            <span
+                              className={`block h-full rounded-full transition-[width] duration-300 ${scoreBarColor(score)}`}
+                              style={{ width: `${(score / 5) * 100}%` }}
+                            />
+                          )}
+                        </span>
+                        <span
+                          className={`w-8 text-right text-base font-semibold ${score === null ? 'text-muted-foreground' : ''}`}
+                        >
+                          {score === null ? '—' : score.toFixed(1)}
+                        </span>
+                        {rating?.override !== undefined && (
+                          <Pencil
+                            className="size-3 text-primary"
+                            aria-label="Edited"
                           />
                         )}
                       </span>
-                      <span
-                        className={`w-8 text-right text-base font-semibold ${score === null ? 'text-muted-foreground' : ''}`}
-                      >
-                        {score === null ? '—' : score.toFixed(1)}
-                      </span>
-                      {rating?.override !== undefined && (
-                        <Pencil
-                          className="size-3 text-primary"
-                          aria-label="Edited"
-                        />
-                      )}
-                    </span>
+                    )}
                     {isExpanded && (
                       <span className="mx-auto w-full max-w-[520px] space-y-1 px-4 pb-2 text-center text-[11px] leading-4 whitespace-normal text-muted-foreground">
                         {details.map((detail) => (
