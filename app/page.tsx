@@ -1,6 +1,13 @@
 'use client';
 
-import { SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  SyntheticEvent,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertCircle,
   Check,
@@ -382,6 +389,29 @@ function schoolMatchSources(matchesByLevel: SchoolLevelMatch[]) {
   return [...sources.values()];
 }
 
+function schoolResultsMatchSettings(
+  rating: Rating | undefined,
+  settings: HouseRankerSettings['schools'],
+) {
+  const levels = rating?.schoolLevels;
+  if (!levels?.length) return true;
+  const expectedLevels = [...new Set(settings.levelCodes)].sort().join(',');
+  const resultLevels = levels
+    .map((level) => level.levelCode)
+    .sort()
+    .join(',');
+  const expectedSectors = [...new Set(settings.sectors)].sort().join(',');
+  return (
+    expectedLevels === resultLevels &&
+    levels.every(
+      (level) =>
+        level.minimumRating === settings.minimumRating &&
+        level.maxTravelMinutes === settings.maxTravelMinutes &&
+        [...(level.includedSectors ?? [])].sort().join(',') === expectedSectors,
+    )
+  );
+}
+
 const schoolLevelOrder = new Map([
   ['p', 0],
   ['e', 1],
@@ -547,6 +577,7 @@ export default function Home() {
   const remoteReady = useRef(false);
   const lastSavedBoard = useRef<string | null>(null);
   const housesRef = useRef(houses);
+  const schoolRefreshesRef = useRef(new Set<string>());
   const sheetScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -759,14 +790,28 @@ export default function Home() {
 
   const rankedHouses = useMemo<House[]>(
     () =>
-      houses.map((house) => ({
-        ...house,
-        ratings: {
-          ...house.ratings,
-          budget: budgetRating(house, settings.budget),
-        },
-      })),
-    [houses, settings.budget],
+      houses.map((house) => {
+        const schoolsCurrent = schoolResultsMatchSettings(
+          house.ratings.schools,
+          settings.schools,
+        );
+        return {
+          ...house,
+          ratings: {
+            ...house.ratings,
+            budget: budgetRating(house, settings.budget),
+            ...(schoolsCurrent
+              ? {}
+              : {
+                  schools: {
+                    auto: null,
+                    details: ['Updating results for your school settings…'],
+                  },
+                }),
+          },
+        };
+      }),
+    [houses, settings.budget, settings.schools],
   );
   const people = settings.people;
   const activeCriteria = useMemo(
@@ -776,6 +821,7 @@ export default function Home() {
       ),
     [criteria, people],
   );
+
   const selectedHouse = useMemo(
     () => rankedHouses.find((house) => house.id === selectedHouseId) ?? null,
     [rankedHouses, selectedHouseId],
@@ -1089,6 +1135,24 @@ export default function Home() {
       return { success: false };
     }
   }
+
+  const refreshStaleSchoolResult = useEffectEvent((house: House) => {
+    void autoGradeHouse(house, false, 'schools');
+  });
+
+  useEffect(() => {
+    if (!remoteReady.current) return;
+    const settingsKey = JSON.stringify(settings.schools);
+    for (const house of houses) {
+      if (schoolResultsMatchSettings(house.ratings.schools, settings.schools)) {
+        continue;
+      }
+      const refreshKey = `${house.id}:${settingsKey}`;
+      if (schoolRefreshesRef.current.has(refreshKey)) continue;
+      schoolRefreshesRef.current.add(refreshKey);
+      refreshStaleSchoolResult(house);
+    }
+  }, [houses, settings.schools]);
 
   async function recomputeHouse(house: House) {
     setRecomputingHouseId(house.id);

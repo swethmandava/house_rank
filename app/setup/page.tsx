@@ -622,9 +622,9 @@ export default function SetupPage() {
             </div>
           </Field>
           <p className="text-xs leading-5 text-muted-foreground sm:col-span-2 lg:col-span-4">
-            Scores balance school quality, travel time, and the number of
-            options meeting your minimum—not just the single highest-rated
-            school.
+            Only schools meeting your minimum rating and maximum trip are
+            considered or shown. Scores then balance quality, travel time, and
+            the number of suitable options.
           </p>
         </div>
       );

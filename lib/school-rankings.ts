@@ -104,7 +104,8 @@ export function rankNearbySchools(
               .map((preschool) =>
                 createPreschoolMatch(home, maximumCandidateDistance, preschool),
               )
-              .filter((match): match is SchoolMatch => match !== null),
+              .filter((match): match is SchoolMatch => match !== null)
+              .filter((match) => meetsMinimumRating(match, minimumRating)),
           )
         : (['public', 'private'] as const).flatMap((sector) => {
             const matches = schools
@@ -117,7 +118,8 @@ export function rankNearbySchools(
               .map((school) =>
                 createK12Match(home, maximumCandidateDistance, school, sector),
               )
-              .filter((match): match is SchoolMatch => match !== null);
+              .filter((match): match is SchoolMatch => match !== null)
+              .filter((match) => meetsMinimumRating(match, minimumRating));
             return selectCandidatePool(matches);
           });
 
@@ -266,13 +268,10 @@ function finalizeLevel(
       match.sector === 'preschool' || includedSectors.includes(match.sector),
   );
   const topOptions = scoredReachable.slice(0, 3);
-  const suitableOptions = scoredReachable
-    .filter((match) => (match.qualityScore ?? 0) >= minimumRating / 2)
-    .sort(
-      (first, second) =>
-        first.driveMinutes - second.driveMinutes ||
-        compareAccess(first, second),
-    );
+  const suitableOptions = [...scoredReachable].sort(
+    (first, second) =>
+      first.driveMinutes - second.driveMinutes || compareAccess(first, second),
+  );
   const levelScore = scoreOptions(topOptions, suitableOptions.length);
   const bestSuitable = [...suitableOptions].sort(compareAccess)[0] ?? null;
 
@@ -353,7 +352,7 @@ function selectCandidatePool(matches: SchoolMatch[]) {
         first.driveMinutes - second.driveMinutes ||
         first.name.localeCompare(second.name),
     )
-    .slice(0, 3);
+    .slice(0, 1);
   const strongestAccess = [...matches]
     .sort(compareAccess)
     .slice(0, candidateLimitPerSector);
@@ -361,6 +360,10 @@ function selectCandidatePool(matches: SchoolMatch[]) {
     0,
     candidateLimitPerSector,
   );
+}
+
+function meetsMinimumRating(match: SchoolMatch, minimumRating: number) {
+  return match.qualityScore !== null && match.qualityScore >= minimumRating / 2;
 }
 
 function deduplicateMatches(matches: SchoolMatch[]) {
