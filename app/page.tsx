@@ -1111,7 +1111,7 @@ export default function Home() {
         error?: string;
       }>(result);
       if (!result.ok || !data.rating) {
-        throw new Error(data.error || 'Could not grade this characteristic');
+        throw new Error(data.error || 'Could not grade this priority');
       }
       setHouses((current) =>
         current.map((item) =>
@@ -1136,7 +1136,7 @@ export default function Home() {
       setAiRatingError(
         error instanceof Error
           ? error.message
-          : 'Could not grade this characteristic',
+          : 'Could not grade this priority',
       );
     } finally {
       setRecomputingCriterionKey(null);

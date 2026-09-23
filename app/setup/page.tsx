@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  Check,
   ChevronDown,
   CircleCheck,
   Cloud,
@@ -740,17 +739,14 @@ export default function SetupPage() {
             What matters to you?
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Set your priorities once. Every house will be graded and ranked
-            against the same choices.
+            Set your priorities once. Must-haves carry the most weight and flag
+            a house when its grade falls below 3. Every house is graded and
+            ranked against the same choices.
           </p>
         </div>
 
         <div className="space-y-5">
-          <SetupSection
-            icon={Check}
-            title="Priorities"
-            description="Must-haves carry the most weight and flag a house when its grade falls below 3."
-          >
+          <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_16px_45px_rgb(0_0_0/0.04)]">
             <div className="overflow-x-auto">
               <div
                 style={{ minWidth: Math.max(640, 440 + people.length * 160) }}
@@ -761,7 +757,7 @@ export default function SetupPage() {
                     gridTemplateColumns: `minmax(260px, 1fr) repeat(${people.length}, 160px) 140px`,
                   }}
                 >
-                  <span>Characteristic</span>
+                  <span>Priority</span>
                   {people.map((person) => (
                     <span key={person.id} className="flex items-center gap-1">
                       <span className="truncate">{person.name}</span>
@@ -935,8 +931,8 @@ export default function SetupPage() {
                           }
                           if (event.key === 'Escape') cancelAddCriterion();
                         }}
-                        placeholder="Characteristic name"
-                        aria-label="New characteristic name"
+                        placeholder="Priority name"
+                        aria-label="New priority name"
                       />
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <Button
@@ -1010,13 +1006,13 @@ export default function SetupPage() {
                       className="rounded-full"
                       onClick={() => setAddingCriterion(true)}
                     >
-                      <Plus data-icon="inline-start" /> Add characteristic
+                      <Plus data-icon="inline-start" /> Add priority
                     </Button>
                   )}
                 </div>
               </div>
             </div>
-          </SetupSection>
+          </section>
         </div>
       </div>
     </main>
@@ -1181,35 +1177,6 @@ function AddressAutocomplete({
         </ul>
       )}
     </div>
-  );
-}
-
-function SetupSection({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: typeof Check;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-[22px] border border-border/80 bg-card shadow-[0_16px_45px_rgb(0_0_0/0.04)]">
-      <div className="flex gap-3 border-b px-5 py-5 sm:px-6">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary text-muted-foreground">
-          <Icon className="size-4" aria-hidden="true" />
-        </span>
-        <div>
-          <h2 className="font-medium tracking-[-0.02em]">{title}</h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-      </div>
-      {children}
-    </section>
   );
 }
 
