@@ -1530,7 +1530,7 @@ export default function Home() {
         }}
       >
         <SheetContent
-          className="w-full gap-0 p-0 sm:max-w-[680px] lg:max-w-[760px] xl:max-w-[820px]"
+          className="w-full gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[560px] data-[side=right]:md:max-w-[640px] data-[side=right]:lg:max-w-[760px] data-[side=right]:xl:max-w-[860px]"
           side="right"
         >
           {selectedHouse && (
