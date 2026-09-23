@@ -2041,9 +2041,7 @@ function FragmentGroup({
                     className={`group flex min-h-20 w-full flex-col items-center justify-center px-3 py-2 text-sm font-medium tabular-nums transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isIssue ? 'text-destructive' : ''}`}
                     onClick={() => onOpenRating(house.id, criterion.id)}
                   >
-                    <span
-                      className={`flex min-h-11 w-full max-w-[240px] items-center gap-3 rounded-xl px-3 ${isIssue ? 'bg-destructive/8' : ''}`}
-                    >
+                    <span className="flex min-h-11 w-full max-w-[240px] items-center gap-3 rounded-xl px-3">
                       <span
                         className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10"
                         aria-hidden="true"
