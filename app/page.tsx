@@ -2227,23 +2227,27 @@ function FragmentGroup({
                         />
                         Calculating grade
                       </output>
+                    ) : score === null ? (
+                      <span className="flex min-h-11 w-full items-center justify-center gap-2 px-3 text-xs font-normal text-muted-foreground">
+                        <AlertCircle
+                          className="size-3.5 text-amber-500"
+                          aria-hidden="true"
+                        />
+                        Not graded
+                      </span>
                     ) : (
                       <span className="flex min-h-11 w-full max-w-[240px] items-center gap-3 rounded-xl px-3">
                         <span
                           className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10"
                           aria-hidden="true"
                         >
-                          {score !== null && (
-                            <span
-                              className={`block h-full rounded-full transition-[width] duration-300 ${scoreBarColor(score)}`}
-                              style={{ width: `${(score / 5) * 100}%` }}
-                            />
-                          )}
+                          <span
+                            className={`block h-full rounded-full transition-[width] duration-300 ${scoreBarColor(score)}`}
+                            style={{ width: `${(score / 5) * 100}%` }}
+                          />
                         </span>
-                        <span
-                          className={`w-8 text-right text-base font-semibold ${score === null ? 'text-muted-foreground' : ''}`}
-                        >
-                          {score === null ? '—' : score.toFixed(1)}
+                        <span className="w-8 text-right text-base font-semibold">
+                          {score.toFixed(1)}
                         </span>
                         {rating?.override !== undefined && (
                           <Pencil
