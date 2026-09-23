@@ -164,6 +164,15 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatCompactCurrency(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 async function fetchListingResearch(
   listingUrl: string,
 ): Promise<ListingResearchResult> {
@@ -1375,6 +1384,15 @@ export default function Home() {
                 {visibleHouses.map((house) => {
                   const summary = houseSummary(house, activeCriteria, people);
                   const pending = summary.graded < activeCriteria.length;
+                  const listingPrice = parsePrice(house.price);
+                  const priceDetails = [
+                    listingPrice
+                      ? `${formatCompactCurrency(listingPrice)} list`
+                      : null,
+                    house.estimatedPriceLow && house.estimatedPriceHigh
+                      ? `${formatCompactCurrency(house.estimatedPriceLow)}–${formatCompactCurrency(house.estimatedPriceHigh)} est.`
+                      : null,
+                  ].filter((detail): detail is string => detail !== null);
                   return (
                     <TableHead
                       key={house.id}
@@ -1389,6 +1407,11 @@ export default function Home() {
                           <span className="block truncate text-[13px] font-medium">
                             {house.name}
                           </span>
+                          {priceDetails.length > 0 && (
+                            <span className="mt-0.5 block truncate text-[10px] font-normal tabular-nums text-muted-foreground/80">
+                              {priceDetails.join(' · ')}
+                            </span>
+                          )}
                           <span className="mt-2 block text-[28px] font-medium tracking-[-0.05em] tabular-nums">
                             {summary.score ?? '—'}
                           </span>
