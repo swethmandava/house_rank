@@ -98,6 +98,10 @@ export function applyAutoGradeResult(
             `${placeCategoryLabels[place.category]} — ${place.name} · ${formatDistance(place.distanceMeters)} · ~${place.walkingMinutes} min walk`,
           ];
         });
+  const walkabilityRationale =
+    'grade' in grade.walkability
+      ? `${grade.walkability.averageMinutes} min average walk against a ${settings.walkability.targetMinutes} min maximum. The maximum scores 3/5; faster walks score higher and slower walks score lower.${walkabilityDetails.length ? ` Amenities found: ${walkabilityDetails.join('; ')}.` : ''}`
+      : undefined;
   const schoolDetails =
     'unavailable' in grade.schools
       ? []
@@ -155,7 +159,7 @@ export function applyAutoGradeResult(
               ...house.ratings.walkable,
               auto: grade.walkability.grade,
               details: walkabilityDetails,
-              rationale: `${grade.walkability.averageMinutes} min average walk against a ${settings.walkability.targetMinutes} min maximum. The maximum scores 3/5; faster walks score higher and slower walks score lower.`,
+              rationale: walkabilityRationale,
             },
           }
         : {}),
