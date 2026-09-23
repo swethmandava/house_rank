@@ -10,6 +10,7 @@ import {
   MapPin,
   Minus,
   Plus,
+  Share2,
   Sparkles,
   Trash2,
   WandSparkles,
@@ -94,6 +95,10 @@ function nextArrivalTime(time: string) {
   return `${String(nextHour).padStart(2, '0')}:${String(safeMinutes).padStart(2, '0')}`;
 }
 
+function initialForName(name: string) {
+  return name.trim().charAt(0).toUpperCase() || '?';
+}
+
 export default function SetupPage() {
   const boardId = useBoardId();
   const [settings, setSettings] =
@@ -113,6 +118,7 @@ export default function SetupPage() {
   const [syncStatus, setSyncStatus] = useState<
     'connecting' | 'saved' | 'saving' | 'error'
   >('connecting');
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
 
   useEffect(() => {
     if (!boardId) return;
@@ -167,8 +173,9 @@ export default function SetupPage() {
       setSyncStatus('saving');
       submittedSettingsRef.current.add(serializedSettings);
       if (submittedSettingsRef.current.size > 10) {
-        const oldestSettings =
-          submittedSettingsRef.current.values().next().value;
+        const oldestSettings = submittedSettingsRef.current
+          .values()
+          .next().value;
         if (oldestSettings !== undefined) {
           submittedSettingsRef.current.delete(oldestSettings);
         }
@@ -188,6 +195,25 @@ export default function SetupPage() {
   }, [boardId, settings]);
 
   const people = settings.people;
+
+  async function shareBoard() {
+    if (!boardId) return;
+    const boardUrl = `${window.location.origin}/${boardId}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'House Ranker', url: boardUrl });
+        return;
+      }
+      await navigator.clipboard.writeText(boardUrl);
+      setShareStatus('copied');
+      window.setTimeout(() => setShareStatus('idle'), 1800);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      await navigator.clipboard.writeText(boardUrl);
+      setShareStatus('copied');
+      window.setTimeout(() => setShareStatus('idle'), 1800);
+    }
+  }
 
   function setPriority(id: string, personId: string, priority: Priority) {
     setSettings((current) => ({
@@ -803,7 +829,7 @@ export default function SetupPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/92 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-7">
+        <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between gap-4 px-4 sm:px-7">
           <a
             href={`/${boardId}`}
             className="flex items-center gap-2.5 font-medium tracking-[-0.02em]"
@@ -820,6 +846,31 @@ export default function SetupPage() {
                 Sync issue
               </span>
             )}
+            <div
+              className="mr-1 flex -space-x-1.5"
+              aria-label={`People: ${people.map((person) => person.name).join(', ')}`}
+              title={people.map((person) => person.name).join(', ')}
+            >
+              {people.map((person) => (
+                <span
+                  key={person.id}
+                  className="grid size-7 place-items-center rounded-full border-2 border-background bg-secondary text-[11px] font-medium text-muted-foreground"
+                >
+                  {initialForName(person.name)}
+                </span>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              className="rounded-full px-3"
+              onClick={() => void shareBoard()}
+              aria-label="Share this board"
+            >
+              <Share2 data-icon="inline-start" />
+              <span className="hidden sm:inline">
+                {shareStatus === 'copied' ? 'Copied' : 'Share'}
+              </span>
+            </Button>
             <Button
               className="rounded-full"
               render={<a href={`/${boardId}`} aria-label="Back to homes" />}
@@ -830,7 +881,7 @@ export default function SetupPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-7 sm:py-11">
+      <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-7 sm:py-11">
         <div className="mb-8 max-w-2xl">
           <p className="text-xs font-medium uppercase tracking-[0.11em] text-primary">
             Setup

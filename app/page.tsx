@@ -1923,7 +1923,7 @@ function ScoreDetailCard({
   const canRecompute = systemCriterionIds.has(criterion.id) || aiEligible;
 
   return (
-    <section id={`house-detail-${criterion.id}`} className="py-5">
+    <section id={`house-detail-${criterion.id}`} className="py-7">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3">
         <h4 className="min-w-0 text-sm font-medium">{criterion.label}</h4>
         <div className="flex min-h-8 items-center justify-end">
@@ -1971,7 +1971,7 @@ function ScoreDetailCard({
       </div>
 
       {score !== null && criterion.id === 'schools' ? (
-        <div className="mt-3 overflow-hidden rounded-xl border bg-secondary/25">
+        <div className="mt-4 overflow-hidden rounded-xl border bg-secondary/25">
           <Table className="min-w-[780px] table-fixed text-xs">
             <TableHeader className="bg-secondary/70">
               <TableRow className="hover:bg-transparent">
@@ -2060,7 +2060,7 @@ function ScoreDetailCard({
           onChange={(event) => onRationaleChange(event.target.value)}
           aria-label={`Rationale for ${criterion.label}; saves automatically`}
           placeholder="Add a rationale"
-          className="mt-3 min-h-20 resize-y rounded-xl border-0 bg-secondary/45 text-xs leading-5 shadow-none"
+          className="mt-4 min-h-20 resize-y rounded-xl border-0 bg-secondary/45 text-xs leading-5 shadow-none"
         />
       ) : null}
 
