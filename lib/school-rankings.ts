@@ -38,6 +38,7 @@ export type SchoolLevelMatches = {
   levelCode: SchoolLevelCode;
   levelLabel: string;
   maxTravelMinutes: number;
+  minimumRating: number;
   levelScore: number;
   suitableOptionCount: number;
   closestSuitable: SchoolMatch | null;
@@ -53,12 +54,14 @@ export type SchoolRankingResult = {
   matchesByLevel: SchoolLevelMatches[];
   grade: number | null;
   maxTravelMinutes: number;
+  minimumRating: number;
   travelTimesEstimated: boolean;
 };
 
 export type SchoolRankingSettings = {
   levelCodes: SchoolLevelCode[];
   maxTravelMinutes: number;
+  minimumRating: number;
   sectors: SchoolSector[];
 };
 
@@ -70,7 +73,6 @@ const levelLabels: Record<SchoolLevelCode, string> = {
 };
 
 const candidateLimitPerSector = 8;
-const suitableQualityScore = 3.5;
 
 export function rankNearbySchools(
   home: Coordinates,
@@ -84,6 +86,7 @@ export function rankNearbySchools(
     60,
   );
   const sectors = normalizeSectors(settings.sectors);
+  const minimumRating = clamp(Math.round(settings.minimumRating || 7), 1, 10);
   const levelCodes = [...new Set(settings.levelCodes)];
   const maximumCandidateDistance = Math.min(
     25,
@@ -118,10 +121,11 @@ export function rankNearbySchools(
       levelCode,
       deduplicateMatches(candidateOptions),
       maxTravelMinutes,
+      minimumRating,
     );
   });
 
-  return finalizeRanking(matchesByLevel, maxTravelMinutes, true);
+  return finalizeRanking(matchesByLevel, maxTravelMinutes, minimumRating, true);
 }
 
 export function rerankSchoolsWithDriveTimes(
@@ -139,9 +143,15 @@ export function rerankSchoolsWithDriveTimes(
       level.levelCode,
       candidateOptions,
       ranking.maxTravelMinutes,
+      ranking.minimumRating,
     );
   });
-  return finalizeRanking(matchesByLevel, ranking.maxTravelMinutes, false);
+  return finalizeRanking(
+    matchesByLevel,
+    ranking.maxTravelMinutes,
+    ranking.minimumRating,
+    false,
+  );
 }
 
 export function schoolCoversLevel(
@@ -232,6 +242,7 @@ function finalizeLevel(
   levelCode: SchoolLevelCode,
   candidates: SchoolMatch[],
   maxTravelMinutes: number,
+  minimumRating: number,
 ): SchoolLevelMatches {
   const reachable = candidates
     .filter(
@@ -245,22 +256,24 @@ function finalizeLevel(
     .sort(compareAccess);
   const topOptions = reachable.slice(0, 3);
   const suitableOptions = reachable
-    .filter((match) => (match.qualityScore ?? 0) >= suitableQualityScore)
+    .filter((match) => (match.qualityScore ?? 0) >= minimumRating / 2)
     .sort(
       (first, second) =>
         first.driveMinutes - second.driveMinutes ||
         compareAccess(first, second),
     );
   const levelScore = scoreOptions(topOptions, suitableOptions.length);
+  const bestSuitable = [...suitableOptions].sort(compareAccess)[0] ?? null;
 
   return {
     levelCode,
     levelLabel: levelLabels[levelCode],
     maxTravelMinutes,
+    minimumRating,
     levelScore,
     suitableOptionCount: suitableOptions.length,
     closestSuitable: suitableOptions[0] ?? null,
-    bestReachable: topOptions[0] ?? null,
+    bestReachable: bestSuitable,
     topOptions,
     candidateOptions: candidates,
     bestPublic: reachable.find((match) => match.sector === 'public') ?? null,
@@ -273,6 +286,7 @@ function finalizeLevel(
 function finalizeRanking(
   matchesByLevel: SchoolLevelMatches[],
   maxTravelMinutes: number,
+  minimumRating: number,
   travelTimesEstimated: boolean,
 ): SchoolRankingResult {
   return {
@@ -284,6 +298,7 @@ function finalizeRanking(
         )
       : null,
     maxTravelMinutes,
+    minimumRating,
     travelTimesEstimated,
   };
 }

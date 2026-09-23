@@ -86,6 +86,7 @@ export type HouseRankerSettings = {
     levelCodes: SchoolLevel[];
     sectors: SchoolSector[];
     maxTravelMinutes: number;
+    minimumRating: number;
   };
 };
 
@@ -166,6 +167,7 @@ export const defaultSettings: HouseRankerSettings = {
     levelCodes: ['p', 'e', 'm', 'h'],
     sectors: ['public'],
     maxTravelMinutes: 20,
+    minimumRating: 7,
   },
 };
 
@@ -177,19 +179,12 @@ export function normalizeSettings(
   const savedCriteria = Array.isArray(saved.criteria)
     ? saved.criteria
     : defaultCriteria;
-  const computedCriterionIds = new Set(
-    computedCriteria.map((criterion) => criterion.id),
-  );
   const savedCriteriaById = new Map(
     savedCriteria.map((criterion) => [criterion.id, criterion]),
   );
   const sourceCriteria = [
-    ...computedCriteria.map(
-      (preset) => savedCriteriaById.get(preset.id) ?? preset,
-    ),
-    ...savedCriteria.filter(
-      (criterion) => !computedCriterionIds.has(criterion.id),
-    ),
+    ...savedCriteria,
+    ...computedCriteria.filter((preset) => !savedCriteriaById.has(preset.id)),
   ];
   const criteria = sourceCriteria
     .filter((criterion) => criterion.id && criterion.label)
@@ -272,6 +267,10 @@ function normalizeSchoolSettings(
       typeof savedSchools?.maxTravelMinutes === 'number'
         ? savedSchools.maxTravelMinutes
         : defaultSettings.schools.maxTravelMinutes,
+    minimumRating:
+      typeof savedSchools?.minimumRating === 'number'
+        ? savedSchools.minimumRating
+        : defaultSettings.schools.minimumRating,
   };
 }
 
@@ -280,6 +279,31 @@ export function criterionPriority(
   personId: string,
 ): Priority {
   return criterion.priorities[personId] ?? 'nice';
+}
+
+export function sortCriteriaByImportance(
+  criteria: Criterion[],
+  people: HouseRankerPerson[],
+) {
+  return criteria
+    .map((criterion, index) => {
+      const priorities = people.map((person) =>
+        criterionPriority(criterion, person.id),
+      );
+      return {
+        criterion,
+        index,
+        mustCount: priorities.filter((priority) => priority === 'must').length,
+        niceCount: priorities.filter((priority) => priority === 'nice').length,
+      };
+    })
+    .sort(
+      (first, second) =>
+        second.mustCount - first.mustCount ||
+        second.niceCount - first.niceCount ||
+        first.index - second.index,
+    )
+    .map(({ criterion }) => criterion);
 }
 
 export function buildSubjectiveAssessmentCriteria(criteria: Criterion[]) {

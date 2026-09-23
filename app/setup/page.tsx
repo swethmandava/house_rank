@@ -28,6 +28,7 @@ import {
   type CommuteMode,
   type HouseRankerSettings,
   normalizeSettings,
+  sortCriteriaByImportance,
   type PlaceCategory,
   type Priority,
   type SchoolLevel,
@@ -99,6 +100,7 @@ export default function SetupPage() {
   const [settings, setSettings] =
     useState<HouseRankerSettings>(defaultSettings);
   const settingsReadyRef = useRef(false);
+  const priorityOrderInitializedRef = useRef(false);
   const persistedSettingsRef = useRef('');
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(
     null,
@@ -115,18 +117,25 @@ export default function SetupPage() {
   useEffect(() => {
     if (!boardId) return;
     settingsReadyRef.current = false;
+    priorityOrderInitializedRef.current = false;
     persistedSettingsRef.current = '';
     return subscribeToBoardState(
       boardId,
       (board) => {
         settingsReadyRef.current = true;
-        if (board?.settings) {
-          const normalized = normalizeSettings(board.settings);
-          persistedSettingsRef.current = JSON.stringify(normalized);
-          setSettings(normalized);
-        } else {
-          persistedSettingsRef.current = JSON.stringify(defaultSettings);
-        }
+        const normalized = normalizeSettings(board?.settings);
+        const nextSettings = priorityOrderInitializedRef.current
+          ? normalized
+          : {
+              ...normalized,
+              criteria: sortCriteriaByImportance(
+                normalized.criteria,
+                normalized.people,
+              ),
+            };
+        priorityOrderInitializedRef.current = true;
+        persistedSettingsRef.current = JSON.stringify(normalized);
+        setSettings(nextSettings);
         setSyncStatus('saved');
       },
       () => setSyncStatus('error'),
@@ -474,7 +483,7 @@ export default function SetupPage() {
 
     if (criterionId === 'schools') {
       return (
-        <div className="grid gap-5 sm:grid-cols-[1.4fr_0.8fr_180px]">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[1.35fr_0.8fr_180px_150px]">
           <Field label="Grade levels">
             <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
               {schoolLevelOptions.map((option) => {
@@ -543,9 +552,34 @@ export default function SetupPage() {
               </span>
             </div>
           </Field>
-          <p className="text-xs leading-5 text-muted-foreground sm:col-span-3">
+          <Field label="Minimum rating">
+            <div className="relative">
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                step={1}
+                value={settings.schools.minimumRating}
+                onChange={(event) => {
+                  setSettings((current) => ({
+                    ...current,
+                    schools: {
+                      ...current.schools,
+                      minimumRating: Number(event.target.value),
+                    },
+                  }));
+                }}
+                className="h-10 rounded-xl pr-10"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                / 10
+              </span>
+            </div>
+          </Field>
+          <p className="text-xs leading-5 text-muted-foreground sm:col-span-2 lg:col-span-4">
             Scores balance school quality, travel time, and the number of
-            suitable options—not just the single highest-rated school.
+            options meeting your minimum—not just the single highest-rated
+            school.
           </p>
         </div>
       );

@@ -34,6 +34,7 @@ type AutoGradeRequest = {
     levelCodes: SchoolLevelCode[];
     sectors: SchoolSector[];
     maxTravelMinutes: number;
+    minimumRating: number;
   };
   subjectiveCriteria?: Array<{
     id: string;

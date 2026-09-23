@@ -80,6 +80,7 @@ import {
   type Priority,
   type Rating,
   normalizeSettings,
+  sortCriteriaByImportance,
   type SchoolLevelMatch,
   type SchoolMatch,
 } from '@/lib/house-ranker';
@@ -346,7 +347,8 @@ function schoolSummaryText(matchesByLevel: SchoolLevelMatch[]) {
     0,
   );
   const maxTravelMinutes = matchesByLevel[0].maxTravelMinutes;
-  return `${suitableOptions} suitable school option${suitableOptions === 1 ? '' : 's'} across ${matchesByLevel.length} selected level${matchesByLevel.length === 1 ? '' : 's'} · up to ${maxTravelMinutes} min`;
+  const minimumRating = matchesByLevel[0].minimumRating;
+  return `${suitableOptions} suitable school option${suitableOptions === 1 ? '' : 's'} rated ${minimumRating}+/10 across ${matchesByLevel.length} selected level${matchesByLevel.length === 1 ? '' : 's'} · up to ${maxTravelMinutes} min`;
 }
 
 function schoolMatchText(match: SchoolMatch) {
@@ -397,13 +399,14 @@ function schoolEvidenceGroups(
       )
       .map((level) => {
         const hasAccessSummary = typeof level.levelScore === 'number';
+        const minimumRating = level.minimumRating ?? 7;
         return {
           label: level.levelLabel,
           rows: hasAccessSummary
             ? [
                 {
                   label: 'Access',
-                  text: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable option${level.suitableOptionCount === 1 ? '' : 's'} within ${level.maxTravelMinutes} min`,
+                  text: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} option${level.suitableOptionCount === 1 ? '' : 's'} rated ${minimumRating}+/10 within ${level.maxTravelMinutes} min`,
                 },
                 {
                   label: 'Closest suitable',
@@ -412,10 +415,10 @@ function schoolEvidenceGroups(
                     : 'No suitable option within the travel limit',
                 },
                 {
-                  label: 'Best reachable',
+                  label: 'Best suitable',
                   text: level.bestReachable
                     ? schoolMatchText(level.bestReachable)
-                    : 'No rated option within the travel limit',
+                    : 'No school meets the minimum rating within the travel limit',
                 },
               ]
             : level.levelCode === 'p'
@@ -998,9 +1001,9 @@ export default function Home() {
             'unavailable' in grade.schools
               ? []
               : grade.schools.matchesByLevel.flatMap((level) => [
-                  `${level.levelLabel} access: ${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable option${level.suitableOptionCount === 1 ? '' : 's'} within ${level.maxTravelMinutes} min`,
+                  `${level.levelLabel} access: ${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} option${level.suitableOptionCount === 1 ? '' : 's'} rated ${level.minimumRating}+/10 within ${level.maxTravelMinutes} min`,
                   `${level.levelLabel} closest suitable: ${level.closestSuitable ? schoolMatchText(level.closestSuitable) : 'No suitable option within the travel limit'}`,
-                  `${level.levelLabel} best reachable: ${level.bestReachable ? schoolMatchText(level.bestReachable) : 'No rated option within the travel limit'}`,
+                  `${level.levelLabel} best suitable: ${level.bestReachable ? schoolMatchText(level.bestReachable) : 'No school meets the minimum rating within the travel limit'}`,
                 ]);
           const schoolSources =
             'unavailable' in grade.schools
@@ -2000,28 +2003,9 @@ function FragmentGroup({
   expandedCriterionIds: string[];
   onOpenRating: (houseId: string, criterionId: string) => void;
 }) {
-  const rows = criteria
-    .map((criterion, index) => {
-      const priorities = people.map((person) =>
-        criterionPriority(criterion, person.id),
-      );
-      return {
-        criterion,
-        index,
-        mustCount: priorities.filter((priority) => priority === 'must').length,
-        niceCount: priorities.filter((priority) => priority === 'nice').length,
-      };
-    })
-    .filter(
-      ({ criterion }) => criterionDisplayGroup(criterion, people) === group,
-    )
-    .sort(
-      (first, second) =>
-        second.mustCount - first.mustCount ||
-        second.niceCount - first.niceCount ||
-        first.index - second.index,
-    )
-    .map(({ criterion }) => criterion);
+  const rows = sortCriteriaByImportance(criteria, people).filter(
+    (criterion) => criterionDisplayGroup(criterion, people) === group,
+  );
   return (
     <>
       <TableRow className="border-b-0 bg-secondary/45 hover:bg-secondary/45">
