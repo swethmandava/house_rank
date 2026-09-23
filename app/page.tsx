@@ -2000,9 +2000,28 @@ function FragmentGroup({
   expandedCriterionIds: string[];
   onOpenRating: (houseId: string, criterionId: string) => void;
 }) {
-  const rows = criteria.filter(
-    (criterion) => criterionDisplayGroup(criterion, people) === group,
-  );
+  const rows = criteria
+    .map((criterion, index) => {
+      const priorities = people.map((person) =>
+        criterionPriority(criterion, person.id),
+      );
+      return {
+        criterion,
+        index,
+        mustCount: priorities.filter((priority) => priority === 'must').length,
+        niceCount: priorities.filter((priority) => priority === 'nice').length,
+      };
+    })
+    .filter(
+      ({ criterion }) => criterionDisplayGroup(criterion, people) === group,
+    )
+    .sort(
+      (first, second) =>
+        second.mustCount - first.mustCount ||
+        second.niceCount - first.niceCount ||
+        first.index - second.index,
+    )
+    .map(({ criterion }) => criterion);
   return (
     <>
       <TableRow className="border-b-0 bg-secondary/45 hover:bg-secondary/45">
