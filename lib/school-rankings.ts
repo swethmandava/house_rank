@@ -1,4 +1,5 @@
 export type SchoolLevelCode = 'p' | 'e' | 'm' | 'h';
+export type SchoolSector = 'public' | 'private';
 
 export type Coordinates = { lat: number; lng: number };
 
@@ -23,9 +24,12 @@ export type PreschoolRecord = {
 
 export type SchoolMatch = {
   name: string;
+  sector: SchoolSector | 'preschool';
   distanceMiles: number;
-  driveMinutes: number | null;
+  driveMinutes: number;
   ratingBand: string;
+  qualityScore: number | null;
+  accessScore: number | null;
   overviewUrl: string | null;
   coordinates: Coordinates;
 };
@@ -33,6 +37,13 @@ export type SchoolMatch = {
 export type SchoolLevelMatches = {
   levelCode: SchoolLevelCode;
   levelLabel: string;
+  maxTravelMinutes: number;
+  levelScore: number;
+  suitableOptionCount: number;
+  closestSuitable: SchoolMatch | null;
+  bestReachable: SchoolMatch | null;
+  topOptions: SchoolMatch[];
+  candidateOptions: SchoolMatch[];
   bestPublic: SchoolMatch | null;
   bestPrivate: SchoolMatch | null;
   bestPreschool: SchoolMatch | null;
@@ -41,12 +52,14 @@ export type SchoolLevelMatches = {
 export type SchoolRankingResult = {
   matchesByLevel: SchoolLevelMatches[];
   grade: number | null;
+  maxTravelMinutes: number;
+  travelTimesEstimated: boolean;
 };
 
-type RankedMatch = {
-  match: SchoolMatch;
-  rankScore: number;
-  gradeScore: number | null;
+export type SchoolRankingSettings = {
+  levelCodes: SchoolLevelCode[];
+  maxTravelMinutes: number;
+  sectors: SchoolSector[];
 };
 
 const levelLabels: Record<SchoolLevelCode, string> = {
@@ -56,68 +69,79 @@ const levelLabels: Record<SchoolLevelCode, string> = {
   h: 'High school',
 };
 
+const candidateLimitPerSector = 8;
+const suitableQualityScore = 3.5;
+
 export function rankNearbySchools(
   home: Coordinates,
-  settings: { levelCodes: SchoolLevelCode[]; radiusMiles: number },
+  settings: SchoolRankingSettings,
   schools: K12SchoolRecord[],
   preschools: PreschoolRecord[],
 ): SchoolRankingResult {
-  const radiusMiles = Math.max(0.25, Math.min(50, settings.radiusMiles));
+  const maxTravelMinutes = clamp(
+    Math.round(settings.maxTravelMinutes || 20),
+    5,
+    60,
+  );
+  const sectors = normalizeSectors(settings.sectors);
   const levelCodes = [...new Set(settings.levelCodes)];
-  const gradeScores: number[] = [];
+  const maximumCandidateDistance = Math.min(
+    25,
+    Math.max(4, maxTravelMinutes * 0.6),
+  );
 
   const matchesByLevel = levelCodes.map((levelCode) => {
-    if (levelCode === 'p') {
-      const rankedPreschools = preschools
-        .map((preschool) => rankPreschool(home, radiusMiles, preschool))
-        .filter((candidate): candidate is RankedMatch => candidate !== null)
-        .sort(compareRankedMatches);
-      const bestPreschool = rankedPreschools[0] ?? null;
-      gradeScores.push(bestPreschool?.gradeScore ?? 0);
-      return {
-        levelCode,
-        levelLabel: levelLabels[levelCode],
-        bestPublic: null,
-        bestPrivate: null,
-        bestPreschool: bestPreschool?.match ?? null,
-      };
-    }
+    const candidateOptions =
+      levelCode === 'p'
+        ? selectCandidatePool(
+            preschools
+              .map((preschool) =>
+                createPreschoolMatch(home, maximumCandidateDistance, preschool),
+              )
+              .filter((match): match is SchoolMatch => match !== null),
+          )
+        : sectors.flatMap((sector) => {
+            const matches = schools
+              .filter(
+                (school) =>
+                  school.publicVsPrivate === sectorLabel(sector) &&
+                  schoolCoversLevel(school.schoolType, levelCode),
+              )
+              .map((school) =>
+                createK12Match(home, maximumCandidateDistance, school, sector),
+              )
+              .filter((match): match is SchoolMatch => match !== null);
+            return selectCandidatePool(matches);
+          });
 
-    const matchingSchools = schools.filter((school) =>
-      schoolCoversLevel(school.schoolType, levelCode),
-    );
-    const publicCandidates = matchingSchools
-      .filter((school) => school.publicVsPrivate === 'Public')
-      .map((school) => rankPublic(home, radiusMiles, school))
-      .filter((candidate): candidate is RankedMatch => candidate !== null)
-      .sort(compareRankedMatches);
-    const privateCandidates = matchingSchools
-      .filter((school) => school.publicVsPrivate === 'Private')
-      .map((school) => rankPrivate(home, radiusMiles, school))
-      .filter((candidate): candidate is RankedMatch => candidate !== null)
-      .sort(compareRankedMatches);
-    const bestPublic = publicCandidates[0] ?? null;
-    const bestPrivate = privateCandidates[0] ?? null;
-    gradeScores.push(bestPublic?.gradeScore ?? 0);
-
-    return {
+    return finalizeLevel(
       levelCode,
-      levelLabel: levelLabels[levelCode],
-      bestPublic: bestPublic?.match ?? null,
-      bestPrivate: bestPrivate?.match ?? null,
-      bestPreschool: null,
-    };
+      deduplicateMatches(candidateOptions),
+      maxTravelMinutes,
+    );
   });
 
-  return {
-    matchesByLevel,
-    grade: gradeScores.length
-      ? roundToHalf(
-          gradeScores.reduce((sum, score) => sum + score, 0) /
-            gradeScores.length,
-        )
-      : null,
-  };
+  return finalizeRanking(matchesByLevel, maxTravelMinutes, true);
+}
+
+export function rerankSchoolsWithDriveTimes(
+  ranking: SchoolRankingResult,
+  minutesByCoordinate: Map<string, number>,
+): SchoolRankingResult {
+  const matchesByLevel = ranking.matchesByLevel.map((level) => {
+    const candidateOptions = level.candidateOptions.map((match) => ({
+      ...match,
+      driveMinutes:
+        minutesByCoordinate.get(coordinateKey(match.coordinates)) ??
+        ranking.maxTravelMinutes + 1,
+    }));
+    return finalizeLevel(
+      level.levelCode,
+      candidateOptions,
+      ranking.maxTravelMinutes,
+    );
+  });
+  return finalizeRanking(matchesByLevel, ranking.maxTravelMinutes, false);
 }
 
 export function schoolCoversLevel(
@@ -141,97 +165,186 @@ export function schoolCoversLevel(
   return schoolType === 'High School' || schoolType === 'Middle/High School';
 }
 
-function rankPublic(
+function createK12Match(
   home: Coordinates,
-  radiusMiles: number,
+  maximumDistanceMiles: number,
   school: K12SchoolRecord,
-): RankedMatch | null {
+  sector: SchoolSector,
+): SchoolMatch | null {
   const distanceMiles = haversineMiles(home, {
     lat: school.latitude,
     lng: school.longitude,
   });
-  if (distanceMiles > radiusMiles) return null;
-  const rating = school.greatSchoolsRating;
-  const gradeScore =
-    rating === null
-      ? null
-      : clamp(rating / 2 - distancePenalty(distanceMiles, radiusMiles), 0, 5);
+  if (distanceMiles > maximumDistanceMiles) return null;
+  const sourceRating =
+    sector === 'public'
+      ? school.greatSchoolsRating
+      : school.privateStaffingProxyRating;
+  const qualityScore =
+    sourceRating === null ? null : clamp(sourceRating / 2, 0, 5);
+  const driveMinutes = estimatedDriveMinutes(distanceMiles);
   return {
-    match: {
-      name: school.name,
-      distanceMiles: roundDistance(distanceMiles),
-      driveMinutes: null,
-      ratingBand:
-        rating === null
+    name: school.name,
+    sector,
+    distanceMiles: roundDistance(distanceMiles),
+    driveMinutes,
+    ratingBand:
+      sourceRating === null
+        ? sector === 'public'
           ? 'GreatSchools rating unavailable'
-          : `GreatSchools ${formatScore(rating)}/10`,
-      overviewUrl: school.greatSchoolsProfileUrl,
-      coordinates: { lat: school.latitude, lng: school.longitude },
-    },
-    rankScore: gradeScore ?? -1 - distanceMiles / radiusMiles,
-    gradeScore,
+          : 'Private staffing proxy unavailable'
+        : sector === 'public'
+          ? `GreatSchools ${formatScore(sourceRating)}/10`
+          : `Private staffing proxy ${formatScore(sourceRating)}/10`,
+    qualityScore,
+    accessScore: accessScore(qualityScore, driveMinutes),
+    overviewUrl: sector === 'public' ? school.greatSchoolsProfileUrl : null,
+    coordinates: { lat: school.latitude, lng: school.longitude },
   };
 }
 
-function rankPrivate(
+function createPreschoolMatch(
   home: Coordinates,
-  radiusMiles: number,
-  school: K12SchoolRecord,
-): RankedMatch | null {
-  const distanceMiles = haversineMiles(home, {
-    lat: school.latitude,
-    lng: school.longitude,
-  });
-  if (distanceMiles > radiusMiles) return null;
-  const proxy = school.privateStaffingProxyRating;
-  return {
-    match: {
-      name: school.name,
-      distanceMiles: roundDistance(distanceMiles),
-      driveMinutes: null,
-      ratingBand:
-        proxy === null
-          ? 'Private staffing proxy unavailable'
-          : `Private staffing proxy ${formatScore(proxy)}/10`,
-      overviewUrl: null,
-      coordinates: { lat: school.latitude, lng: school.longitude },
-    },
-    rankScore:
-      proxy === null
-        ? -1 - distanceMiles / radiusMiles
-        : proxy / 2 - distancePenalty(distanceMiles, radiusMiles),
-    gradeScore: null,
-  };
-}
-
-function rankPreschool(
-  home: Coordinates,
-  radiusMiles: number,
+  maximumDistanceMiles: number,
   preschool: PreschoolRecord,
-): RankedMatch | null {
+): SchoolMatch | null {
   const distanceMiles = haversineMiles(home, {
     lat: preschool.latitude,
     lng: preschool.longitude,
   });
-  if (distanceMiles > radiusMiles) return null;
+  if (distanceMiles > maximumDistanceMiles) return null;
   const screening = preschoolScreening(preschool.screeningRating);
-  const gradeScore = clamp(
-    screening.baseScore - distancePenalty(distanceMiles, radiusMiles),
-    0,
-    5,
-  );
+  const driveMinutes = estimatedDriveMinutes(distanceMiles);
   return {
-    match: {
-      name: preschool.name,
-      distanceMiles: roundDistance(distanceMiles),
-      driveMinutes: null,
-      ratingBand: screening.label,
-      overviewUrl: preschool.overviewUrl,
-      coordinates: { lat: preschool.latitude, lng: preschool.longitude },
-    },
-    rankScore: gradeScore,
-    gradeScore,
+    name: preschool.name,
+    sector: 'preschool',
+    distanceMiles: roundDistance(distanceMiles),
+    driveMinutes,
+    ratingBand: screening.label,
+    qualityScore: screening.baseScore,
+    accessScore: accessScore(screening.baseScore, driveMinutes),
+    overviewUrl: preschool.overviewUrl,
+    coordinates: { lat: preschool.latitude, lng: preschool.longitude },
   };
+}
+
+function finalizeLevel(
+  levelCode: SchoolLevelCode,
+  candidates: SchoolMatch[],
+  maxTravelMinutes: number,
+): SchoolLevelMatches {
+  const reachable = candidates
+    .filter(
+      (match) =>
+        match.driveMinutes <= maxTravelMinutes && match.qualityScore !== null,
+    )
+    .map((match) => ({
+      ...match,
+      accessScore: accessScore(match.qualityScore, match.driveMinutes),
+    }))
+    .sort(compareAccess);
+  const topOptions = reachable.slice(0, 3);
+  const suitableOptions = reachable
+    .filter((match) => (match.qualityScore ?? 0) >= suitableQualityScore)
+    .sort(
+      (first, second) =>
+        first.driveMinutes - second.driveMinutes ||
+        compareAccess(first, second),
+    );
+  const levelScore = scoreOptions(topOptions, suitableOptions.length);
+
+  return {
+    levelCode,
+    levelLabel: levelLabels[levelCode],
+    maxTravelMinutes,
+    levelScore,
+    suitableOptionCount: suitableOptions.length,
+    closestSuitable: suitableOptions[0] ?? null,
+    bestReachable: topOptions[0] ?? null,
+    topOptions,
+    candidateOptions: candidates,
+    bestPublic: reachable.find((match) => match.sector === 'public') ?? null,
+    bestPrivate: reachable.find((match) => match.sector === 'private') ?? null,
+    bestPreschool:
+      reachable.find((match) => match.sector === 'preschool') ?? null,
+  };
+}
+
+function finalizeRanking(
+  matchesByLevel: SchoolLevelMatches[],
+  maxTravelMinutes: number,
+  travelTimesEstimated: boolean,
+): SchoolRankingResult {
+  return {
+    matchesByLevel,
+    grade: matchesByLevel.length
+      ? roundToTenth(
+          matchesByLevel.reduce((sum, level) => sum + level.levelScore, 0) /
+            matchesByLevel.length,
+        )
+      : null,
+    maxTravelMinutes,
+    travelTimesEstimated,
+  };
+}
+
+function scoreOptions(topOptions: SchoolMatch[], suitableCount: number) {
+  if (!topOptions.length) return 0;
+  const weights = [0.6, 0.25, 0.15];
+  const usedWeights = weights.slice(0, topOptions.length);
+  const weightTotal = usedWeights.reduce((sum, weight) => sum + weight, 0);
+  const weightedAccess = topOptions.reduce(
+    (sum, match, index) => sum + (match.accessScore ?? 0) * usedWeights[index],
+    0,
+  );
+  const choiceBonus = Math.min(0.4, Math.max(0, suitableCount - 1) * 0.2);
+  return roundToTenth(clamp(weightedAccess / weightTotal + choiceBonus, 0, 5));
+}
+
+function selectCandidatePool(matches: SchoolMatch[]) {
+  const nearest = [...matches]
+    .sort(
+      (first, second) =>
+        first.driveMinutes - second.driveMinutes ||
+        first.name.localeCompare(second.name),
+    )
+    .slice(0, 3);
+  const strongestAccess = [...matches]
+    .sort(compareAccess)
+    .slice(0, candidateLimitPerSector);
+  return deduplicateMatches([...nearest, ...strongestAccess]).slice(
+    0,
+    candidateLimitPerSector,
+  );
+}
+
+function deduplicateMatches(matches: SchoolMatch[]) {
+  return [
+    ...new Map(
+      matches.map((match) => [
+        `${match.name}:${coordinateKey(match.coordinates)}`,
+        match,
+      ]),
+    ).values(),
+  ];
+}
+
+function compareAccess(first: SchoolMatch, second: SchoolMatch) {
+  return (
+    (second.accessScore ?? -1) - (first.accessScore ?? -1) ||
+    first.driveMinutes - second.driveMinutes ||
+    first.name.localeCompare(second.name)
+  );
+}
+
+function accessScore(qualityScore: number | null, driveMinutes: number) {
+  if (qualityScore === null) return null;
+  const travelWeight = clamp(1 - Math.max(0, driveMinutes - 5) * 0.04, 0.35, 1);
+  return roundToTenth(qualityScore * travelWeight);
+}
+
+function estimatedDriveMinutes(distanceMiles: number) {
+  return Math.max(3, Math.round(3 + distanceMiles * 4));
 }
 
 function preschoolScreening(rating: string) {
@@ -247,16 +360,16 @@ function preschoolScreening(rating: string) {
   throw new Error(`Unknown preschool screening rating: ${rating}`);
 }
 
-function compareRankedMatches(first: RankedMatch, second: RankedMatch) {
-  return (
-    second.rankScore - first.rankScore ||
-    first.match.distanceMiles - second.match.distanceMiles ||
-    first.match.name.localeCompare(second.match.name)
+function normalizeSectors(sectors: SchoolSector[] | undefined) {
+  const filtered = [...new Set(sectors ?? ['public'])].filter(
+    (sector): sector is SchoolSector =>
+      sector === 'public' || sector === 'private',
   );
+  return filtered.length ? filtered : (['public'] as SchoolSector[]);
 }
 
-function distancePenalty(distanceMiles: number, radiusMiles: number) {
-  return Math.min(1, distanceMiles / radiusMiles);
+function sectorLabel(sector: SchoolSector) {
+  return sector === 'public' ? 'Public' : 'Private';
 }
 
 function formatScore(value: number) {
@@ -267,12 +380,16 @@ function roundDistance(value: number) {
   return Math.round(value * 10) / 10;
 }
 
-function roundToHalf(value: number) {
-  return clamp(Math.round(value * 2) / 2, 0, 5);
+function roundToTenth(value: number) {
+  return clamp(Math.round(value * 10) / 10, 0, 5);
 }
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function coordinateKey(coordinates: Coordinates) {
+  return `${coordinates.lat},${coordinates.lng}`;
 }
 
 function haversineMiles(from: Coordinates, to: Coordinates) {

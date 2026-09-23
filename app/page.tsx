@@ -341,37 +341,32 @@ function ratingDetails(
 
 function schoolSummaryText(matchesByLevel: SchoolLevelMatch[]) {
   if (!matchesByLevel.length) return 'Select at least one school level';
-  const categories = matchesByLevel.flatMap((level) =>
-    level.levelCode === 'p'
-      ? [level.bestPreschool]
-      : [level.bestPublic, level.bestPrivate],
+  const suitableOptions = matchesByLevel.reduce(
+    (sum, level) => sum + level.suitableOptionCount,
+    0,
   );
-  const matched = categories.filter(Boolean).length;
-  return `${matched} of ${categories.length} school categories matched within the selected radius`;
+  const maxTravelMinutes = matchesByLevel[0].maxTravelMinutes;
+  return `${suitableOptions} suitable school option${suitableOptions === 1 ? '' : 's'} across ${matchesByLevel.length} selected level${matchesByLevel.length === 1 ? '' : 's'} · up to ${maxTravelMinutes} min`;
 }
 
 function schoolMatchText(match: SchoolMatch) {
-  const driveTime =
+  const sector =
+    match.sector === 'preschool'
+      ? ''
+      : match.sector === 'public' || match.sector === 'private'
+        ? `${match.sector === 'public' ? 'Public' : 'Private'} · `
+        : '';
+  const travel =
     typeof match.driveMinutes === 'number'
-      ? ` · ${match.driveMinutes} min drive`
-      : '';
-  return `${match.name} · ${match.ratingBand} · ${match.distanceMiles.toFixed(1)} mi${driveTime}`;
-}
-
-function schoolCategoryText(category: string, match: SchoolMatch | null) {
-  return match
-    ? `${category}: ${schoolMatchText(match)}`
-    : `${category}: No match within radius`;
+      ? `${match.driveMinutes} min`
+      : `${match.distanceMiles.toFixed(1)} mi`;
+  return `${sector}${match.name} · ${travel} · ${match.ratingBand}`;
 }
 
 function schoolMatchSources(matchesByLevel: SchoolLevelMatch[]) {
   const sources = new Map<string, { title: string; url: string }>();
   for (const level of matchesByLevel) {
-    for (const match of [
-      level.bestPreschool,
-      level.bestPublic,
-      level.bestPrivate,
-    ]) {
+    for (const match of level.topOptions) {
       if (!match?.overviewUrl) continue;
       sources.set(match.overviewUrl, {
         title: `${match.name} profile`,
@@ -400,33 +395,54 @@ function schoolEvidenceGroups(
           (schoolLevelOrder.get(first.levelCode) ?? 4) -
           (schoolLevelOrder.get(second.levelCode) ?? 4),
       )
-      .map((level) => ({
-        label: level.levelLabel,
-        rows:
-          level.levelCode === 'p'
+      .map((level) => {
+        const hasAccessSummary = typeof level.levelScore === 'number';
+        return {
+          label: level.levelLabel,
+          rows: hasAccessSummary
             ? [
                 {
-                  label: 'Nearby',
-                  text: level.bestPreschool
-                    ? schoolMatchText(level.bestPreschool)
-                    : 'No match within radius',
+                  label: 'Access',
+                  text: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable option${level.suitableOptionCount === 1 ? '' : 's'} within ${level.maxTravelMinutes} min`,
+                },
+                {
+                  label: 'Closest suitable',
+                  text: level.closestSuitable
+                    ? schoolMatchText(level.closestSuitable)
+                    : 'No suitable option within the travel limit',
+                },
+                {
+                  label: 'Best reachable',
+                  text: level.bestReachable
+                    ? schoolMatchText(level.bestReachable)
+                    : 'No rated option within the travel limit',
                 },
               ]
-            : [
-                {
-                  label: 'Public',
-                  text: level.bestPublic
-                    ? schoolMatchText(level.bestPublic)
-                    : 'No match within radius',
-                },
-                {
-                  label: 'Private',
-                  text: level.bestPrivate
-                    ? schoolMatchText(level.bestPrivate)
-                    : 'No match within radius',
-                },
-              ],
-      }));
+            : level.levelCode === 'p'
+              ? [
+                  {
+                    label: 'Nearby',
+                    text: level.bestPreschool
+                      ? schoolMatchText(level.bestPreschool)
+                      : 'No match',
+                  },
+                ]
+              : [
+                  {
+                    label: 'Public',
+                    text: level.bestPublic
+                      ? schoolMatchText(level.bestPublic)
+                      : 'No match',
+                  },
+                  {
+                    label: 'Private',
+                    text: level.bestPrivate
+                      ? schoolMatchText(level.bestPrivate)
+                      : 'No match',
+                  },
+                ],
+        };
+      });
   }
 
   const groups = new Map<string, Array<{ label: string; text: string }>>();
@@ -981,27 +997,22 @@ export default function Home() {
           const schoolDetails =
             'unavailable' in grade.schools
               ? []
-              : grade.schools.matchesByLevel.flatMap((level) => {
-                  if (level.levelCode === 'p') {
-                    return [
-                      schoolCategoryText(level.levelLabel, level.bestPreschool),
-                    ];
-                  }
-                  return [
-                    schoolCategoryText(
-                      `${level.levelLabel} public`,
-                      level.bestPublic,
-                    ),
-                    schoolCategoryText(
-                      `${level.levelLabel} private`,
-                      level.bestPrivate,
-                    ),
-                  ];
-                });
+              : grade.schools.matchesByLevel.flatMap((level) => [
+                  `${level.levelLabel} access: ${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable option${level.suitableOptionCount === 1 ? '' : 's'} within ${level.maxTravelMinutes} min`,
+                  `${level.levelLabel} closest suitable: ${level.closestSuitable ? schoolMatchText(level.closestSuitable) : 'No suitable option within the travel limit'}`,
+                  `${level.levelLabel} best reachable: ${level.bestReachable ? schoolMatchText(level.bestReachable) : 'No rated option within the travel limit'}`,
+                ]);
           const schoolSources =
             'unavailable' in grade.schools
               ? []
               : schoolMatchSources(grade.schools.matchesByLevel);
+          const compactSchoolLevels =
+            'unavailable' in grade.schools
+              ? []
+              : grade.schools.matchesByLevel.map((level) => ({
+                  ...level,
+                  candidateOptions: [],
+                }));
           const subjectiveRatings = Object.fromEntries(
             (grade.subjectiveRatings ?? []).map((rating) => [
               rating.criterionId,
@@ -1048,7 +1059,7 @@ export default function Home() {
                       ...item.ratings.schools,
                       auto: grade.schools.grade,
                       details: schoolDetails,
-                      schoolLevels: grade.schools.matchesByLevel,
+                      schoolLevels: compactSchoolLevels,
                       sources: schoolSources,
                     },
                   }

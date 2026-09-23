@@ -9,10 +9,11 @@ import {
 } from '../lib/school-data';
 import {
   rankNearbySchools,
+  rerankSchoolsWithDriveTimes,
   type Coordinates,
   type SchoolLevelCode,
-  type SchoolMatch,
   type SchoolRankingResult,
+  type SchoolSector,
 } from '../lib/school-rankings';
 
 type ApiResult = { status: number; body: unknown };
@@ -31,7 +32,8 @@ type AutoGradeRequest = {
   };
   schools: {
     levelCodes: SchoolLevelCode[];
-    radiusMiles: number;
+    sectors: SchoolSector[];
+    maxTravelMinutes: number;
   };
   subjectiveCriteria?: Array<{
     id: string;
@@ -84,7 +86,7 @@ export async function handleAutoGradeRequest(
   );
   const schoolsPromise = houseCoordinatesPromise
     .then(async (coordinates) => {
-      const schools = rankSchoolsForDisplay(
+      const schools = rankNearbySchools(
         coordinates,
         input.schools,
         sanFranciscoSchools,
@@ -162,30 +164,6 @@ export async function handleAutoGradeRequest(
   }
 }
 
-function rankSchoolsForDisplay(
-  home: Coordinates,
-  settings: AutoGradeRequest['schools'],
-  schools: typeof sanFranciscoSchools,
-  preschools: typeof sanFranciscoPreschools,
-) {
-  const ranking = rankNearbySchools(home, settings, schools, preschools);
-  if (settings.levelCodes.includes('p')) return ranking;
-
-  const preschoolRanking = rankNearbySchools(
-    home,
-    { ...settings, levelCodes: ['p'] },
-    schools,
-    preschools,
-  );
-  return {
-    ...ranking,
-    matchesByLevel: [
-      ...preschoolRanking.matchesByLevel,
-      ...ranking.matchesByLevel,
-    ],
-  };
-}
-
 async function calculateSchoolDriveTimes(
   house: Coordinates,
   ranking: SchoolRankingResult,
@@ -193,10 +171,8 @@ async function calculateSchoolDriveTimes(
   appId: string,
   apiKey: string,
 ): Promise<SchoolRankingResult> {
-  const matches = ranking.matchesByLevel.flatMap((level) =>
-    [level.bestPreschool, level.bestPublic, level.bestPrivate].filter(
-      (match): match is SchoolMatch => match !== null,
-    ),
+  const matches = ranking.matchesByLevel.flatMap(
+    (level) => level.candidateOptions,
   );
   const destinations = [
     ...new Map(
@@ -205,72 +181,67 @@ async function calculateSchoolDriveTimes(
   ];
   if (!destinations.length) return ranking;
 
-  const result = await fetch(`${travelTimeBaseUrl}/time-filter`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Application-Id': appId,
-      'X-Api-Key': apiKey,
-    },
-    body: JSON.stringify({
-      locations: [
-        { id: 'house', coords: house },
-        ...destinations.map((match, index) => ({
-          id: `school-${index}`,
-          coords: match.coordinates,
-        })),
-      ],
-      arrival_searches: destinations.map((_, index) => ({
-        id: `school-drive-${index}`,
-        departure_location_ids: ['house'],
-        arrival_location_id: `school-${index}`,
-        arrival_time: nextWeekdayArrival('08:00', timeZoneOffsetMinutes),
-        travel_time: 7_200,
-        properties: ['travel_time'],
-        transportation: { type: 'driving' },
-      })),
-    }),
-  });
-  if (!result.ok) throw new Error('School travel times are unavailable');
-
-  const data = (await result.json()) as {
-    results?: Array<{
-      search_id?: string;
-      locations?: Array<{ properties?: Array<{ travel_time?: number }> }>;
-    }>;
-  };
   const minutesByCoordinate = new Map<string, number>();
-  const resultsBySearchId = new Map(
-    (data.results ?? []).map((item) => [item.search_id, item]),
-  );
-  destinations.forEach((match, index) => {
-    const seconds = resultsBySearchId.get(`school-drive-${index}`)
-      ?.locations?.[0]?.properties?.[0]?.travel_time;
-    if (typeof seconds === 'number') {
-      minutesByCoordinate.set(
-        coordinateKey(match.coordinates),
-        Math.max(1, Math.round(seconds / 60)),
+  const batches = chunk(destinations, 8);
+  await Promise.all(
+    batches.map(async (batch, batchIndex) => {
+      const result = await fetch(`${travelTimeBaseUrl}/time-filter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Application-Id': appId,
+          'X-Api-Key': apiKey,
+        },
+        body: JSON.stringify({
+          locations: [
+            { id: 'house', coords: house },
+            ...batch.map((match, index) => ({
+              id: `school-${batchIndex}-${index}`,
+              coords: match.coordinates,
+            })),
+          ],
+          arrival_searches: batch.map((_, index) => ({
+            id: `school-drive-${batchIndex}-${index}`,
+            departure_location_ids: ['house'],
+            arrival_location_id: `school-${batchIndex}-${index}`,
+            arrival_time: nextWeekdayArrival('08:00', timeZoneOffsetMinutes),
+            travel_time: Math.max(300, ranking.maxTravelMinutes * 60),
+            properties: ['travel_time'],
+            transportation: { type: 'driving' },
+          })),
+        }),
+      });
+      if (!result.ok) throw new Error('School travel times are unavailable');
+      const data = (await result.json()) as {
+        results?: Array<{
+          search_id?: string;
+          locations?: Array<{ properties?: Array<{ travel_time?: number }> }>;
+        }>;
+      };
+      const resultsBySearchId = new Map(
+        (data.results ?? []).map((item) => [item.search_id, item]),
       );
-    }
-  });
-
-  const withDriveTime = (match: SchoolMatch | null) =>
-    match
-      ? {
-          ...match,
-          driveMinutes:
-            minutesByCoordinate.get(coordinateKey(match.coordinates)) ?? null,
+      batch.forEach((match, index) => {
+        const seconds = resultsBySearchId.get(
+          `school-drive-${batchIndex}-${index}`,
+        )?.locations?.[0]?.properties?.[0]?.travel_time;
+        if (typeof seconds === 'number') {
+          minutesByCoordinate.set(
+            coordinateKey(match.coordinates),
+            Math.max(1, Math.round(seconds / 60)),
+          );
         }
-      : null;
-  return {
-    ...ranking,
-    matchesByLevel: ranking.matchesByLevel.map((level) => ({
-      ...level,
-      bestPreschool: withDriveTime(level.bestPreschool),
-      bestPublic: withDriveTime(level.bestPublic),
-      bestPrivate: withDriveTime(level.bestPrivate),
-    })),
-  };
+      });
+    }),
+  );
+
+  return rerankSchoolsWithDriveTimes(ranking, minutesByCoordinate);
+}
+
+function chunk<T>(items: T[], size: number) {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, index * size + size),
+  );
 }
 
 function coordinateKey(coordinates: Coordinates) {

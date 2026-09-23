@@ -2,6 +2,7 @@ import type {
   SchoolLevelCode,
   SchoolLevelMatches,
   SchoolMatch as RankedSchoolMatch,
+  SchoolSector as RankedSchoolSector,
 } from './school-rankings';
 
 export type Priority = 'must' | 'nice' | 'neutral';
@@ -62,6 +63,7 @@ export type PlaceCategory =
   | 'park'
   | 'transit';
 export type SchoolLevel = SchoolLevelCode;
+export type SchoolSector = RankedSchoolSector;
 
 export type HouseRankerSettings = {
   people: HouseRankerPerson[];
@@ -82,7 +84,8 @@ export type HouseRankerSettings = {
   };
   schools: {
     levelCodes: SchoolLevel[];
-    radiusMiles: number;
+    sectors: SchoolSector[];
+    maxTravelMinutes: number;
   };
 };
 
@@ -113,7 +116,8 @@ export const computedCriteria: Criterion[] = [
     label: 'Schools',
     group: 'Nice-to-haves',
     priorities: { 'person-1': 'nice' },
-    autoNote: 'Computed from nearby schools and your selected grade levels',
+    autoNote:
+      'Computed from reachable school quality, travel time, and nearby choices',
   },
 ];
 
@@ -160,7 +164,8 @@ export const defaultSettings: HouseRankerSettings = {
   },
   schools: {
     levelCodes: ['p', 'e', 'm', 'h'],
-    radiusMiles: 5,
+    sectors: ['public'],
+    maxTravelMinutes: 20,
   },
 };
 
@@ -245,13 +250,28 @@ export function normalizeSettings(
           ? saved.walkability.targetMinutes
           : defaultSettings.walkability.targetMinutes,
     },
-    schools: {
-      ...defaultSettings.schools,
-      ...saved.schools,
-      levelCodes: Array.isArray(saved.schools?.levelCodes)
-        ? saved.schools.levelCodes
-        : defaultSettings.schools.levelCodes,
-    },
+    schools: normalizeSchoolSettings(saved.schools),
+  };
+}
+
+function normalizeSchoolSettings(
+  savedSchools: Partial<HouseRankerSettings['schools']> | undefined,
+) {
+  const sectors = Array.isArray(savedSchools?.sectors)
+    ? savedSchools.sectors.filter(
+        (sector): sector is SchoolSector =>
+          sector === 'public' || sector === 'private',
+      )
+    : [];
+  return {
+    levelCodes: Array.isArray(savedSchools?.levelCodes)
+      ? savedSchools.levelCodes
+      : defaultSettings.schools.levelCodes,
+    sectors: sectors.length ? sectors : defaultSettings.schools.sectors,
+    maxTravelMinutes:
+      typeof savedSchools?.maxTravelMinutes === 'number'
+        ? savedSchools.maxTravelMinutes
+        : defaultSettings.schools.maxTravelMinutes,
   };
 }
 

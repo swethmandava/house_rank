@@ -31,6 +31,7 @@ import {
   type PlaceCategory,
   type Priority,
   type SchoolLevel,
+  type SchoolSector,
 } from '@/lib/house-ranker';
 import { useBoardId } from '@/hooks/use-board-id';
 import {
@@ -68,6 +69,11 @@ const schoolLevelOptions: Array<{ value: SchoolLevel; label: string }> = [
   { value: 'e', label: 'Elementary' },
   { value: 'm', label: 'Middle school' },
   { value: 'h', label: 'High school' },
+];
+
+const schoolSectorOptions: Array<{ value: SchoolSector; label: string }> = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
 ];
 
 const commuteModeOptions: Array<{ value: CommuteMode; label: string }> = [
@@ -421,6 +427,21 @@ export default function SetupPage() {
     }));
   }
 
+  function toggleSchoolSector(sector: SchoolSector, checked: boolean) {
+    setSettings((current) => {
+      if (!checked && current.schools.sectors.length === 1) return current;
+      return {
+        ...current,
+        schools: {
+          ...current.schools,
+          sectors: checked
+            ? [...new Set([...current.schools.sectors, sector])]
+            : current.schools.sectors.filter((item) => item !== sector),
+        },
+      };
+    });
+  }
+
   function renderComputedSettings(criterionId: string) {
     if (criterionId === 'budget') {
       return (
@@ -453,7 +474,7 @@ export default function SetupPage() {
 
     if (criterionId === 'schools') {
       return (
-        <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+        <div className="grid gap-5 sm:grid-cols-[1.4fr_0.8fr_180px]">
           <Field label="Grade levels">
             <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
               {schoolLevelOptions.map((option) => {
@@ -477,29 +498,55 @@ export default function SetupPage() {
               })}
             </div>
           </Field>
-          <Field label="Search radius">
+          <Field label="School options">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
+              {schoolSectorOptions.map((option) => {
+                const checked = settings.schools.sectors.includes(option.value);
+                return (
+                  <label
+                    key={option.value}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(value) =>
+                        toggleSchoolSector(option.value, value === true)
+                      }
+                    />
+                    {option.label}
+                  </label>
+                );
+              })}
+            </div>
+          </Field>
+          <Field label="Maximum school trip">
             <div className="relative">
               <Input
                 type="number"
-                min={1}
-                max={50}
-                value={settings.schools.radiusMiles}
+                min={5}
+                max={60}
+                step={5}
+                value={settings.schools.maxTravelMinutes}
                 onChange={(event) => {
                   setSettings((current) => ({
                     ...current,
                     schools: {
                       ...current.schools,
-                      radiusMiles: Number(event.target.value),
+                      maxTravelMinutes: Number(event.target.value),
                     },
                   }));
                 }}
-                className="h-10 rounded-xl pr-12"
+                className="h-10 rounded-xl pr-16"
               />
               <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-                miles
+                minutes
               </span>
             </div>
           </Field>
+          <p className="text-xs leading-5 text-muted-foreground sm:col-span-3">
+            Scores balance school quality, travel time, and the number of
+            suitable options—not just the single highest-rated school.
+          </p>
         </div>
       );
     }
