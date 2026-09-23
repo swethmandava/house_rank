@@ -127,7 +127,7 @@ export default function SetupPage() {
         const normalized = normalizeSettings(board?.settings);
         const serializedSettings = JSON.stringify(normalized);
         const isLocalEcho =
-          submittedSettingsRef.current.delete(serializedSettings);
+          submittedSettingsRef.current.has(serializedSettings);
         persistedSettingsRef.current = serializedSettings;
         if (isLocalEcho) {
           setSyncStatus('saved');
@@ -166,6 +166,13 @@ export default function SetupPage() {
     const timer = window.setTimeout(() => {
       setSyncStatus('saving');
       submittedSettingsRef.current.add(serializedSettings);
+      if (submittedSettingsRef.current.size > 10) {
+        const oldestSettings =
+          submittedSettingsRef.current.values().next().value;
+        if (oldestSettings !== undefined) {
+          submittedSettingsRef.current.delete(oldestSettings);
+        }
+      }
       void mergeBoardState(boardId, { settings: persistedSettings })
         .then(() => {
           persistedSettingsRef.current = serializedSettings;
@@ -1399,8 +1406,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="block space-y-3 text-xs font-medium text-muted-foreground">
-      <span>{label}</span>
+    <div className="flex flex-col gap-2 text-xs font-medium text-muted-foreground">
+      <span className="block leading-none">{label}</span>
       {children}
     </div>
   );
