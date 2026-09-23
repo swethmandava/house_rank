@@ -1,8 +1,4 @@
-import {
-  rateHouseCharacteristics,
-  type AiHouseRating,
-  type HouseRatingCriterion,
-} from '../lib/openai-house';
+import { rateHouseCharacteristics } from '../lib/openai-house';
 import {
   sanFranciscoPreschools,
   sanFranciscoSchools,
@@ -77,9 +73,9 @@ export async function handleAutoGradeRequest(
           listingUrl: input.listingUrl,
           notes: input.notes,
         },
-        input.subjectiveCriteria as HouseRatingCriterion[],
-      ).catch(() => [] as AiHouseRating[])
-    : Promise.resolve([] as AiHouseRating[]);
+        input.subjectiveCriteria,
+      ).catch(() => [])
+    : Promise.resolve([]);
   const houseCoordinatesPromise = geocodeHouseAddress(
     input.houseAddress,
     appId,
@@ -183,7 +179,10 @@ async function calculateSchoolDriveTimes(
   if (!destinations.length) return ranking;
 
   const minutesByCoordinate = new Map<string, number>();
-  const batches = chunk(destinations, 8);
+  const batches = Array.from(
+    { length: Math.ceil(destinations.length / 8) },
+    (_, index) => destinations.slice(index * 8, index * 8 + 8),
+  );
   await Promise.all(
     batches.map(async (batch, batchIndex) => {
       const result = await fetch(`${travelTimeBaseUrl}/time-filter`, {
@@ -237,12 +236,6 @@ async function calculateSchoolDriveTimes(
   );
 
   return rerankSchoolsWithDriveTimes(ranking, minutesByCoordinate);
-}
-
-function chunk<T>(items: T[], size: number) {
-  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
-    items.slice(index * size, index * size + size),
-  );
 }
 
 function coordinateKey(coordinates: Coordinates) {

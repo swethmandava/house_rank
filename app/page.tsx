@@ -368,7 +368,7 @@ function schoolMatchSources(matchesByLevel: SchoolLevelMatch[]) {
   const sources = new Map<string, { title: string; url: string }>();
   for (const level of matchesByLevel) {
     for (const match of level.topOptions) {
-      if (!match?.overviewUrl) continue;
+      if (!match.overviewUrl) continue;
       sources.set(match.overviewUrl, {
         title: `${match.name} profile`,
         url: match.overviewUrl,

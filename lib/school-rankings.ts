@@ -107,7 +107,8 @@ export function rankNearbySchools(
             const matches = schools
               .filter(
                 (school) =>
-                  school.publicVsPrivate === sectorLabel(sector) &&
+                  school.publicVsPrivate ===
+                    (sector === 'public' ? 'Public' : 'Private') &&
                   schoolCoversLevel(school.schoolType, levelCode),
               )
               .map((school) =>
@@ -375,16 +376,14 @@ function preschoolScreening(rating: string) {
   throw new Error(`Unknown preschool screening rating: ${rating}`);
 }
 
-function normalizeSectors(sectors: SchoolSector[] | undefined) {
+function normalizeSectors(
+  sectors: SchoolSector[] | undefined,
+): SchoolSector[] {
   const filtered = [...new Set(sectors ?? ['public'])].filter(
     (sector): sector is SchoolSector =>
       sector === 'public' || sector === 'private',
   );
-  return filtered.length ? filtered : (['public'] as SchoolSector[]);
-}
-
-function sectorLabel(sector: SchoolSector) {
-  return sector === 'public' ? 'Public' : 'Private';
+  return filtered.length ? filtered : ['public'];
 }
 
 function formatScore(value: number) {
