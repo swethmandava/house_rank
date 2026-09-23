@@ -28,6 +28,7 @@ import {
   type CommuteMode,
   type HouseRankerSettings,
   normalizeSettings,
+  placeCategoryLabels,
   sortCriteriaByImportance,
   type PlaceCategory,
   type Priority,
@@ -58,11 +59,11 @@ const priorityOptions = [
 ] as const;
 
 const categoryOptions: Array<{ value: PlaceCategory; label: string }> = [
-  { value: 'grocery', label: 'Grocery store' },
-  { value: 'coffee', label: 'Coffee shop' },
-  { value: 'restaurant', label: 'Restaurant' },
-  { value: 'park', label: 'Park' },
-  { value: 'transit', label: 'Transit stop' },
+  { value: 'grocery', label: placeCategoryLabels.grocery },
+  { value: 'coffee', label: placeCategoryLabels.coffee },
+  { value: 'restaurant', label: placeCategoryLabels.restaurant },
+  { value: 'park', label: placeCategoryLabels.park },
+  { value: 'transit', label: placeCategoryLabels.transit },
 ];
 
 const schoolLevelOptions: Array<{ value: SchoolLevel; label: string }> = [

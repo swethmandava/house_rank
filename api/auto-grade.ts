@@ -45,12 +45,20 @@ type AutoGradeRequest = {
 };
 
 const travelTimeBaseUrl = 'https://api.traveltimeapp.com/v4';
-const placeTypes = {
-  grocery: 'supermarket',
-  coffee: 'cafe',
-  restaurant: 'restaurant',
-  park: 'park',
-  transit: 'transit_station',
+const placePrimaryTypes = {
+  grocery: ['grocery_store', 'supermarket'],
+  coffee: ['coffee_shop', 'cafe'],
+  restaurant: ['restaurant'],
+  park: ['park'],
+  transit: [
+    'transit_station',
+    'transit_stop',
+    'bus_stop',
+    'subway_station',
+    'light_rail_station',
+    'train_station',
+    'tram_stop',
+  ],
 } as const;
 
 export async function handleAutoGradeRequest(
@@ -466,7 +474,7 @@ async function calculateWalkability(
             'X-Goog-FieldMask': 'places.displayName,places.location',
           },
           body: JSON.stringify({
-            includedTypes: [placeTypes[category]],
+            includedPrimaryTypes: placePrimaryTypes[category],
             maxResultCount: 1,
             rankPreference: 'DISTANCE',
             locationRestriction: {

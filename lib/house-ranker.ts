@@ -62,6 +62,14 @@ export type PlaceCategory =
   | 'restaurant'
   | 'park'
   | 'transit';
+
+export const placeCategoryLabels: Record<PlaceCategory, string> = {
+  grocery: 'Grocery store',
+  coffee: 'Coffee shop',
+  restaurant: 'Restaurant',
+  park: 'Park',
+  transit: 'Transit stop',
+};
 export type SchoolLevel = SchoolLevelCode;
 export type SchoolSector = RankedSchoolSector;
 

@@ -83,6 +83,8 @@ import {
   type House,
   type HouseRankerPerson,
   type HouseRankerSettings,
+  placeCategoryLabels,
+  type PlaceCategory,
   type Priority,
   type Rating,
   normalizeSettings,
@@ -979,7 +981,7 @@ export default function Home() {
           | { unavailable: true; reason: string }
           | {
               places: Array<{
-                category: string;
+                category: PlaceCategory;
                 name: string | null;
                 distanceMeters: number | null;
                 walkingMinutes: number | null;
@@ -1066,7 +1068,7 @@ export default function Home() {
                   )
                   .map(
                     (place) =>
-                      `${place.name} · ${formatDistance(place.distanceMeters!)} · ~${place.walkingMinutes} min walk`,
+                      `${placeCategoryLabels[place.category]} — ${place.name} · ${formatDistance(place.distanceMeters!)} · ~${place.walkingMinutes} min walk`,
                   );
           const schoolDetails =
             'unavailable' in grade.schools
