@@ -1601,6 +1601,7 @@ export default function Home() {
                   people={people}
                   expandedCriterionIds={expandedCriterionIds}
                   gradingHouseIds={gradingHouseIds}
+                  recomputingCriterionKey={recomputingCriterionKey}
                   onOpenRating={openRating}
                 />
               ))}
@@ -1784,6 +1785,11 @@ export default function Home() {
                         recomputing={
                           recomputingCriterionKey ===
                           `${selectedHouse.id}:${criterion.id}`
+                        }
+                        grading={
+                          gradingHouseIds.includes(selectedHouse.id) ||
+                          recomputingCriterionKey ===
+                            `${selectedHouse.id}:${criterion.id}`
                         }
                         aiError={
                           selectedCriterionId === criterion.id
@@ -1981,6 +1987,7 @@ function ScoreDetailCard({
   onRationaleChange,
   onRecompute,
   recomputing,
+  grading,
   aiError,
 }: {
   house: House;
@@ -1989,6 +1996,7 @@ function ScoreDetailCard({
   onRationaleChange: (rationale: string) => void;
   onRecompute: () => void;
   recomputing: boolean;
+  grading: boolean;
   aiError: string;
 }) {
   const rating = house.ratings[criterion.id];
@@ -2020,10 +2028,21 @@ function ScoreDetailCard({
             </Button>
           )}
         </div>
-        {score === null ? (
+        {score === null && grading ? (
           <output className="col-span-2 flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
-            <LoaderCircle className="size-3.5 animate-spin text-primary" />
-            <span>Calculating grade…</span>
+            <LoaderCircle
+              className="size-3.5 animate-spin text-primary"
+              aria-hidden="true"
+            />
+            <span>Calculating grade</span>
+          </output>
+        ) : score === null ? (
+          <output className="col-span-2 flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
+            <AlertCircle
+              className="size-3.5 text-amber-500"
+              aria-hidden="true"
+            />
+            <span>Not graded</span>
           </output>
         ) : (
           <>
@@ -2181,6 +2200,7 @@ function FragmentGroup({
   people,
   expandedCriterionIds,
   gradingHouseIds,
+  recomputingCriterionKey,
   onOpenRating,
 }: {
   group: 'Must-haves' | 'Nice-to-haves';
@@ -2189,6 +2209,7 @@ function FragmentGroup({
   people: HouseRankerPerson[];
   expandedCriterionIds: string[];
   gradingHouseIds: string[];
+  recomputingCriterionKey: string | null;
   onOpenRating: (houseId: string, criterionId: string) => void;
 }) {
   const rows = sortCriteriaByImportance(criteria, people).filter(
@@ -2227,7 +2248,9 @@ function FragmentGroup({
             {houses.map((house) => {
               const rating = house.ratings[criterion.id];
               const score = effectiveScore(rating);
-              const isGrading = gradingHouseIds.includes(house.id);
+              const isGrading =
+                gradingHouseIds.includes(house.id) ||
+                recomputingCriterionKey === `${house.id}:${criterion.id}`;
               const isIssue =
                 people.some(
                   (person) =>
