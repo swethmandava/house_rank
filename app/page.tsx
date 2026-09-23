@@ -385,10 +385,18 @@ const schoolLevelOrder = new Map([
   ['h', 3],
 ]);
 
-function schoolEvidenceGroups(
+type SchoolEvidenceRow = {
+  label: string;
+  access: string;
+  closest: SchoolMatch | null;
+  closestText?: string;
+  best: Array<{ label: string; match: SchoolMatch | null; text?: string }>;
+};
+
+function schoolEvidenceRows(
   levels: SchoolLevelMatch[] | undefined,
   fallbackDetails: string[],
-) {
+): SchoolEvidenceRow[] {
   if (levels?.length) {
     return [...levels]
       .sort(
@@ -396,72 +404,61 @@ function schoolEvidenceGroups(
           (schoolLevelOrder.get(first.levelCode) ?? 4) -
           (schoolLevelOrder.get(second.levelCode) ?? 4),
       )
-      .map((level) => {
-        const hasAccessSummary = typeof level.levelScore === 'number';
-        const minimumRating = level.minimumRating ?? 7;
-        return {
-          label: level.levelLabel,
-          rows: hasAccessSummary
+      .map((level) => ({
+        label: level.levelLabel,
+        access: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable`,
+        closest: level.closestSuitable,
+        best:
+          level.levelCode === 'p'
             ? [
                 {
-                  label: 'Access',
-                  text: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} option${level.suitableOptionCount === 1 ? '' : 's'} rated ${minimumRating}+/10 within ${level.maxTravelMinutes} min`,
-                },
-                {
-                  label: 'Closest suitable',
-                  text: level.closestSuitable
-                    ? schoolMatchText(level.closestSuitable)
-                    : 'No suitable option within the travel limit',
-                },
-                {
-                  label: 'Best suitable',
-                  text: level.bestReachable
-                    ? schoolMatchText(level.bestReachable)
-                    : 'No school meets the minimum rating within the travel limit',
+                  label: 'All',
+                  match: level.bestPreschool ?? level.bestReachable,
                 },
               ]
-            : level.levelCode === 'p'
-              ? [
-                  {
-                    label: 'Nearby',
-                    text: level.bestPreschool
-                      ? schoolMatchText(level.bestPreschool)
-                      : 'No match',
-                  },
-                ]
-              : [
-                  {
-                    label: 'Public',
-                    text: level.bestPublic
-                      ? schoolMatchText(level.bestPublic)
-                      : 'No match',
-                  },
-                  {
-                    label: 'Private',
-                    text: level.bestPrivate
-                      ? schoolMatchText(level.bestPrivate)
-                      : 'No match',
-                  },
-                ],
-        };
-      });
+            : [
+                { label: 'Public', match: level.bestPublic },
+                { label: 'Private', match: level.bestPrivate },
+              ],
+      }));
   }
 
-  const groups = new Map<string, Array<{ label: string; text: string }>>();
+  const rows = new Map<string, SchoolEvidenceRow>();
   for (const detail of fallbackDetails) {
     const match = detail.match(
-      /^(Preschool|Elementary|Middle school|High school)(?: (public|private))?: (.+)$/,
+      /^(Preschool|Elementary|Middle school|High school) (access|closest suitable|best suitable): (.+)$/i,
     );
     if (!match) continue;
-    const [, level, sector, text] = match;
-    const rows = groups.get(level) ?? [];
-    rows.push({
-      label: sector ? `${sector[0].toUpperCase()}${sector.slice(1)}` : 'Nearby',
-      text,
-    });
-    groups.set(level, rows);
+    const [, level, kind, text] = match;
+    const row = rows.get(level) ?? {
+      label: level,
+      access: 'Not available',
+      closest: null,
+      best: [],
+    };
+    if (kind.toLowerCase() === 'access') row.access = text;
+    if (kind.toLowerCase() === 'closest suitable') {
+      row.closestText = text;
+    }
+    if (kind.toLowerCase() === 'best suitable') {
+      row.best.push({ label: 'Best', match: null, text });
+    }
+    rows.set(level, row);
   }
-  return [...groups].map(([label, rows]) => ({ label, rows }));
+  return [...rows.values()];
+}
+
+function SchoolMatchSummary({ match }: { match: SchoolMatch | null }) {
+  if (!match) return <span className="text-muted-foreground">—</span>;
+  const travel = `${match.driveMinutes} min`;
+  return (
+    <span className="block min-w-0">
+      <span className="block font-medium text-foreground">{match.name}</span>
+      <span className="block text-[11px] leading-4 text-muted-foreground">
+        {travel} · {match.ratingBand}
+      </span>
+    </span>
+  );
 }
 
 function blankHouse(
@@ -1906,7 +1903,7 @@ function ScoreDetailCard({
   const score = effectiveScore(rating);
   const details = ratingDetails(house, criterion, rating);
   const rationale = rating?.rationale ?? details.join(' · ');
-  const schoolGroups = schoolEvidenceGroups(rating?.schoolLevels, details);
+  const schoolRows = schoolEvidenceRows(rating?.schoolLevels, details);
   const aiEligible = Boolean(
     criterion.assessmentPrompt?.trim() || criterion.guidanceMode === 'auto',
   );
@@ -1961,22 +1958,64 @@ function ScoreDetailCard({
       </div>
 
       {score !== null && criterion.id === 'schools' ? (
-        <div className="mt-3 space-y-3 rounded-xl bg-secondary/45 px-4 py-3 text-xs leading-5">
-          {schoolGroups.map((group) => (
-            <div key={group.label}>
-              <p className="font-medium text-foreground">{group.label}</p>
-              <ul className="mt-0.5 space-y-0.5 border-l border-border pl-3 text-muted-foreground">
-                {group.rows.map((row) => (
-                  <li key={row.label}>
-                    <span className="font-medium text-foreground/80">
+        <div className="mt-3 overflow-hidden rounded-xl border bg-secondary/25">
+          <Table className="table-fixed text-xs">
+            <TableHeader className="bg-secondary/70">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="h-9 w-[20%] px-3 text-[11px] text-muted-foreground">
+                  Level
+                </TableHead>
+                <TableHead className="h-9 w-[18%] px-2 text-[11px] text-muted-foreground">
+                  Access
+                </TableHead>
+                <TableHead className="h-9 w-[28%] px-2 text-[11px] text-muted-foreground">
+                  Closest
+                </TableHead>
+                <TableHead className="h-9 w-[34%] px-2 text-[11px] text-muted-foreground">
+                  Best
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {schoolRows.map((row) => (
+                <TableRow key={row.label} className="hover:bg-transparent">
+                  <TableCell className="px-3 py-2.5 align-top whitespace-normal">
+                    <span className="font-medium text-foreground">
                       {row.label}
-                    </span>{' '}
-                    · {row.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-2 py-2.5 align-top whitespace-normal text-muted-foreground">
+                    {row.access}
+                  </TableCell>
+                  <TableCell className="px-2 py-2.5 align-top whitespace-normal">
+                    {row.closestText ? (
+                      <span className="text-muted-foreground">
+                        {row.closestText}
+                      </span>
+                    ) : (
+                      <SchoolMatchSummary match={row.closest} />
+                    )}
+                  </TableCell>
+                  <TableCell className="space-y-2 px-2 py-2.5 align-top whitespace-normal">
+                    {row.best.map((option) => (
+                      <div key={option.label}>
+                        <span className="block text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                          {option.label}
+                        </span>
+                        {option.text ? (
+                          <span className="text-muted-foreground">
+                            {option.text}
+                          </span>
+                        ) : (
+                          <SchoolMatchSummary match={option.match} />
+                        )}
+                      </div>
+                    ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : score !== null ? (
         <Textarea
