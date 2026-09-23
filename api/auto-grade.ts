@@ -1,4 +1,5 @@
 import { rateHouseCharacteristics } from '../lib/openai-house';
+import { scoreTravelTime } from '../lib/house-ranker';
 import {
   sanFranciscoPreschools,
   sanFranciscoSchools,
@@ -149,11 +150,15 @@ export async function handleAutoGradeRequest(
               apiKey,
             )
           : null,
-        calculateWalkability(houseCoordinates, input).catch((error) => ({
-          unavailable: true as const,
-          reason:
-            error instanceof Error ? error.message : 'Walkability unavailable',
-        })),
+        calculateWalkability(houseCoordinates, input, appId, apiKey).catch(
+          (error) => ({
+            unavailable: true as const,
+            reason:
+              error instanceof Error
+                ? error.message
+                : 'Walkability unavailable',
+          }),
+        ),
         schoolsPromise,
         subjectiveRatingsPromise,
       ]);
@@ -404,7 +409,7 @@ async function calculateCommute(
     bestModes,
     sampleCount: arrivalTimes.length,
     averageMinutes,
-    grade: gradeForTime(averageMinutes, input.commute.targetMinutes),
+    grade: scoreTravelTime(averageMinutes, input.commute.targetMinutes),
   };
 }
 
@@ -457,6 +462,8 @@ async function calculateCommuteForMode(
 async function calculateWalkability(
   house: Coordinates,
   input: AutoGradeRequest,
+  appId: string,
+  apiKey: string,
 ) {
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key)
@@ -501,22 +508,42 @@ async function calculateWalkability(
         return {
           category,
           name: null,
-          distanceMeters: null,
-          walkingMinutes: null,
+          coordinates: null,
         };
       }
-      const distanceMeters = Math.round(
-        haversineMeters(house, { lat: latitude, lng: longitude }),
-      );
       return {
         category,
         name: place?.displayName?.text ?? null,
-        distanceMeters,
-        walkingMinutes: Math.max(1, Math.round(distanceMeters / 80)),
+        coordinates: { lat: latitude, lng: longitude },
       };
     }),
   );
-  const walkingMinutes = places
+  const routablePlaces = places.flatMap((place, placeIndex) =>
+    place.coordinates ? [{ placeIndex, coordinates: place.coordinates }] : [],
+  );
+  const walkingRoutes = await calculateWalkingRoutes(
+    house,
+    routablePlaces.map((place) => place.coordinates),
+    input.timeZoneOffsetMinutes ?? 0,
+    appId,
+    apiKey,
+  );
+  const routesByPlaceIndex = new Map(
+    routablePlaces.map((place, routeIndex) => [
+      place.placeIndex,
+      walkingRoutes[routeIndex],
+    ]),
+  );
+  const routedPlaces = places.map((place, placeIndex) => {
+    const route = routesByPlaceIndex.get(placeIndex);
+    return {
+      category: place.category,
+      name: place.name,
+      distanceMeters: route?.distanceMeters ?? null,
+      walkingMinutes: route?.walkingMinutes ?? null,
+    };
+  });
+  const walkingMinutes = routedPlaces
     .map((place) => place.walkingMinutes)
     .filter((value): value is number => value !== null);
   if (!walkingMinutes.length)
@@ -526,10 +553,80 @@ async function calculateWalkability(
       walkingMinutes.length,
   );
   return {
-    places,
+    places: routedPlaces,
     averageMinutes,
-    grade: gradeForTime(averageMinutes, input.walkability.targetMinutes),
+    grade: scoreTravelTime(averageMinutes, input.walkability.targetMinutes),
   };
+}
+
+async function calculateWalkingRoutes(
+  house: Coordinates,
+  destinations: Coordinates[],
+  timeZoneOffsetMinutes: number,
+  appId: string,
+  apiKey: string,
+) {
+  if (!destinations.length) return [];
+  const result = await fetch(`${travelTimeBaseUrl}/time-filter`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Application-Id': appId,
+      'X-Api-Key': apiKey,
+    },
+    body: JSON.stringify({
+      locations: [
+        { id: 'house', coords: house },
+        ...destinations.map((coords, index) => ({
+          id: `essential-${index}`,
+          coords,
+        })),
+      ],
+      departure_searches: [
+        {
+          id: 'walkability',
+          departure_location_id: 'house',
+          arrival_location_ids: destinations.map(
+            (_, index) => `essential-${index}`,
+          ),
+          departure_time: nextWeekdayArrival('12:00', timeZoneOffsetMinutes),
+          travel_time: 14_400,
+          properties: ['travel_time', 'distance'],
+          transportation: { type: 'walking' },
+        },
+      ],
+    }),
+  });
+  if (!result.ok) {
+    throw new Error('Walking routes are unavailable');
+  }
+  const data = (await result.json()) as {
+    results?: Array<{
+      locations?: Array<{
+        id?: string;
+        properties?: Array<{ travel_time?: number; distance?: number }>;
+      }>;
+    }>;
+  };
+  const locations = new Map(
+    (data.results?.[0]?.locations ?? []).map((location) => [
+      location.id,
+      location,
+    ]),
+  );
+  return destinations.map((_, index) => {
+    const properties = locations.get(`essential-${index}`)?.properties?.[0];
+    return {
+      walkingMinutes:
+        typeof properties?.travel_time === 'number'
+          ? Math.max(1, Math.round(properties.travel_time / 60))
+          : null,
+      distanceMeters:
+        typeof properties?.distance === 'number'
+          ? Math.round(properties.distance)
+          : null,
+    };
+  });
 }
 
 function nextWeekdayArrival(time: string, offsetMinutes: number) {
@@ -547,26 +644,4 @@ function nextWeekdayArrival(time: string, offsetMinutes: number) {
     0,
   );
   return new Date(arrival.getTime() + offsetMinutes * 60_000).toISOString();
-}
-
-function gradeForTime(minutes: number, target: number) {
-  if (minutes <= target) return 5;
-  return roundGrade(5 - ((minutes - target) / Math.max(target, 1)) * 5);
-}
-
-function roundGrade(value: number) {
-  return Math.max(0, Math.min(5, Math.round(value * 2) / 2));
-}
-
-function haversineMeters(from: Coordinates, to: Coordinates) {
-  const earthRadius = 6_371_000;
-  const radians = (degrees: number) => (degrees * Math.PI) / 180;
-  const latitudeDelta = radians(to.lat - from.lat);
-  const longitudeDelta = radians(to.lng - from.lng);
-  const a =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(radians(from.lat)) *
-      Math.cos(radians(to.lat)) *
-      Math.sin(longitudeDelta / 2) ** 2;
-  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

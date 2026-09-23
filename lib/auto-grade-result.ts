@@ -145,6 +145,7 @@ export function applyAutoGradeResult(
               ...house.ratings.commute,
               auto: grade.commute.grade,
               details: commuteDetails,
+              rationale: `${grade.commute.averageMinutes} min average against a ${settings.commute.targetMinutes} min maximum. The maximum scores 3/5; faster trips score higher and slower trips score lower.`,
             },
           }
         : {}),
@@ -154,6 +155,7 @@ export function applyAutoGradeResult(
               ...house.ratings.walkable,
               auto: grade.walkability.grade,
               details: walkabilityDetails,
+              rationale: `${grade.walkability.averageMinutes} min average walk against a ${settings.walkability.targetMinutes} min maximum. The maximum scores 3/5; faster walks score higher and slower walks score lower.`,
             },
           }
         : {}),

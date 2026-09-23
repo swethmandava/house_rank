@@ -179,6 +179,11 @@ export const defaultSettings: HouseRankerSettings = {
   },
 };
 
+export function scoreTravelTime(minutes: number, targetMinutes: number) {
+  const score = 5 - (2 * minutes) / Math.max(targetMinutes, 1);
+  return Math.max(0, Math.min(5, Math.round(score * 10) / 10));
+}
+
 export function normalizeSettings(
   saved?: Partial<HouseRankerSettings>,
 ): HouseRankerSettings {

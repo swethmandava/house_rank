@@ -107,7 +107,6 @@ export default function SetupPage() {
   const persistedSettingsRef = useRef('');
   const submittedSettingsRef = useRef(new Set<string>());
   const lastQueuedRegradeKeyRef = useRef('');
-  const regradeTimerRef = useRef<number | null>(null);
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(
     null,
   );
@@ -129,23 +128,18 @@ export default function SetupPage() {
       if (!boardId) return;
       const settingsKey = gradingSettingsKey(savedSettings);
       if (settingsKey === lastQueuedRegradeKeyRef.current) return;
-      if (regradeTimerRef.current !== null) {
-        window.clearTimeout(regradeTimerRef.current);
-      }
-      regradeTimerRef.current = window.setTimeout(() => {
-        lastQueuedRegradeKeyRef.current = settingsKey;
-        setRegradeStatus('running');
-        void fetch('/api/regrade-board', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            boardId,
-            settingsKey,
-            timezoneOffset: new Date().getTimezoneOffset(),
-          }),
-          keepalive: true,
-        }).catch(() => setRegradeStatus('failed'));
-      }, 1200);
+      lastQueuedRegradeKeyRef.current = settingsKey;
+      setRegradeStatus('running');
+      void fetch('/api/regrade-board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardId,
+          settingsKey,
+          timezoneOffset: new Date().getTimezoneOffset(),
+        }),
+        keepalive: true,
+      }).catch(() => setRegradeStatus('failed'));
     },
   );
 
@@ -192,13 +186,7 @@ export default function SetupPage() {
       },
       () => setSyncStatus('error'),
     );
-    return () => {
-      unsubscribe();
-      if (regradeTimerRef.current !== null) {
-        window.clearTimeout(regradeTimerRef.current);
-        regradeTimerRef.current = null;
-      }
-    };
+    return unsubscribe;
   }, [boardId]);
 
   useEffect(() => {
