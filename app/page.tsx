@@ -2253,7 +2253,7 @@ function FragmentGroup({
                         )}
                       </span>
                     )}
-                    {isExpanded && (
+                    {isExpanded && !(score === null && isGrading) && (
                       <span className="mx-auto w-full max-w-[520px] space-y-1 px-4 pb-2 text-center text-[11px] leading-4 whitespace-normal text-muted-foreground">
                         {details.map((detail) => (
                           <span key={detail} className="line-clamp-2 block">
