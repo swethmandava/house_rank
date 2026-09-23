@@ -95,10 +95,6 @@ function nextArrivalTime(time: string) {
   return `${String(nextHour).padStart(2, '0')}:${String(safeMinutes).padStart(2, '0')}`;
 }
 
-function initialForName(name: string) {
-  return name.trim().charAt(0).toUpperCase() || '?';
-}
-
 export default function SetupPage() {
   const boardId = useBoardId();
   const [settings, setSettings] =
@@ -856,7 +852,7 @@ export default function SetupPage() {
                   key={person.id}
                   className="grid size-7 place-items-center rounded-full border-2 border-background bg-secondary text-[11px] font-medium text-muted-foreground"
                 >
-                  {initialForName(person.name)}
+                  {person.name.trim().charAt(0).toUpperCase() || '?'}
                 </span>
               ))}
             </div>

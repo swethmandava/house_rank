@@ -420,7 +420,7 @@ const schoolLevelOrder = new Map([
 ]);
 
 type SchoolEvidenceRow = {
-  levelCode?: string;
+  levelCode?: SchoolLevelMatch['levelCode'];
   label: string;
   access: string;
   closestPublic: SchoolMatch | null;
@@ -448,19 +448,12 @@ function schoolEvidenceRows(
         levelCode: level.levelCode,
         label: level.levelLabel,
         access: `${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} suitable`,
-        closestPublic:
-          level.closestPublic ??
-          (level.bestPublic?.sector === 'public' ? level.bestPublic : null),
-        closestPrivate:
-          level.closestPrivate ??
-          (level.bestPrivate?.sector === 'private' ? level.bestPrivate : null),
+        closestPublic: level.closestPublic,
+        closestPrivate: level.closestPrivate,
         bestPublic: level.bestPublic,
         bestPrivate: level.bestPrivate,
         closestAll: level.levelCode === 'p' ? level.closestSuitable : undefined,
-        bestAll:
-          level.levelCode === 'p'
-            ? (level.bestPreschool ?? level.bestReachable)
-            : undefined,
+        bestAll: level.levelCode === 'p' ? level.bestPreschool : undefined,
       }));
   }
 
