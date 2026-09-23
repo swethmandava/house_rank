@@ -9,7 +9,10 @@ import {
   invalidateAutoGrades,
   normalizeSettings,
 } from '@/lib/house-ranker';
-import { getBoardState, mergeBoardState } from '@/lib/house-ranker-store';
+import {
+  getServerBoardState,
+  mergeServerBoardState,
+} from '@/lib/house-ranker-server-store';
 
 const RUNNING_JOB_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const board = await getBoardState(body.boardId);
+    const board = await getServerBoardState(body.boardId);
     if (!board) {
       return Response.json({ error: 'Board not found' }, { status: 404 });
     }
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     const houses = board.houses;
     const invalidatedHouses = houses.map(invalidateAutoGrades);
     const startedAt = Date.now();
-    await mergeBoardState(body.boardId, {
+    await mergeServerBoardState(body.boardId, {
       houses: invalidatedHouses,
       regrade: {
         settingsKey,
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
       grade: AutoGradeResponse | undefined,
     ) => {
       const operation = persistQueue.then(async () => {
-        const latestBoard = await getBoardState(body.boardId as string);
+        const latestBoard = await getServerBoardState(body.boardId as string);
         if (
           !latestBoard ||
           gradingSettingsKey(normalizeSettings(latestBoard.settings)) !==
@@ -103,7 +106,7 @@ export async function POST(request: Request) {
             ? ('partial' as const)
             : ('complete' as const);
 
-        await mergeBoardState(body.boardId as string, {
+        await mergeServerBoardState(body.boardId as string, {
           houses: grade
             ? latestBoard.houses.map((house) =>
                 house.id === houseId
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
     };
 
     if (!houses.length) {
-      await mergeBoardState(body.boardId, {
+      await mergeServerBoardState(body.boardId, {
         regrade: {
           settingsKey,
           status: 'complete',
@@ -168,7 +171,7 @@ export async function POST(request: Request) {
     );
     if (writeFailure) throw writeFailure.reason;
 
-    const latestBoard = await getBoardState(body.boardId);
+    const latestBoard = await getServerBoardState(body.boardId);
     if (
       !latestBoard ||
       latestBoard.regrade?.settingsKey !== settingsKey ||
@@ -181,12 +184,12 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : 'Could not regrade this board';
     try {
-      const board = await getBoardState(body.boardId);
+      const board = await getServerBoardState(body.boardId);
       if (
         board?.regrade?.status === 'running' &&
         board.regrade.settingsKey === body.settingsKey
       ) {
-        await mergeBoardState(body.boardId, {
+        await mergeServerBoardState(body.boardId, {
           regrade: {
             ...board.regrade,
             status: 'failed',

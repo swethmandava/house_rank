@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -123,11 +123,11 @@ export default function SetupPage() {
     'idle' | 'running' | 'partial' | 'failed'
   >('idle');
 
-  const queueBackgroundRegrade = useEffectEvent(
-    (savedSettings: HouseRankerSettings) => {
+  const queueBackgroundRegrade = useCallback(
+    (savedSettings: HouseRankerSettings, force = false) => {
       if (!boardId) return;
       const settingsKey = gradingSettingsKey(savedSettings);
-      if (settingsKey === lastQueuedRegradeKeyRef.current) return;
+      if (!force && settingsKey === lastQueuedRegradeKeyRef.current) return;
       lastQueuedRegradeKeyRef.current = settingsKey;
       setRegradeStatus('running');
       void fetch('/api/regrade-board', {
@@ -147,6 +147,7 @@ export default function SetupPage() {
         })
         .catch(() => setRegradeStatus('failed'));
     },
+    [boardId],
   );
 
   useEffect(() => {
@@ -232,7 +233,7 @@ export default function SetupPage() {
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [boardId, settings]);
+  }, [boardId, queueBackgroundRegrade, settings]);
 
   const people = settings.people;
 
@@ -896,10 +897,14 @@ export default function SetupPage() {
               </span>
             )}
             {(regradeStatus === 'partial' || regradeStatus === 'failed') && (
-              <span className="hidden items-center gap-1.5 text-xs text-destructive sm:inline-flex">
+              <button
+                type="button"
+                className="hidden items-center gap-1.5 text-xs text-destructive hover:underline sm:inline-flex"
+                onClick={() => queueBackgroundRegrade(settings, true)}
+              >
                 <Cloud className="size-3.5" aria-hidden="true" />
-                Regrade issue
-              </span>
+                Retry regrade
+              </button>
             )}
             <div
               className="mr-1 flex -space-x-1.5"
