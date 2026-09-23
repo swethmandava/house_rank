@@ -126,9 +126,8 @@ export default function SetupPage() {
         settingsReadyRef.current = true;
         const normalized = normalizeSettings(board?.settings);
         const serializedSettings = JSON.stringify(normalized);
-        const isLocalEcho = submittedSettingsRef.current.delete(
-          serializedSettings,
-        );
+        const isLocalEcho =
+          submittedSettingsRef.current.delete(serializedSettings);
         persistedSettingsRef.current = serializedSettings;
         if (isLocalEcho) {
           setSyncStatus('saved');
@@ -959,7 +958,7 @@ export default function SetupPage() {
                     ) : (
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="sm"
                         className="justify-self-end rounded-full text-muted-foreground hover:text-destructive"
                         onClick={() =>
                           removeCriterion(criterion.id, criterion.label)
@@ -967,7 +966,8 @@ export default function SetupPage() {
                         aria-label={`Delete ${criterion.label}`}
                         title={`Delete ${criterion.label}`}
                       >
-                        <Trash2 />
+                        Delete
+                        <Trash2 aria-hidden="true" />
                       </Button>
                     )}
                     {computedCriterionIds.has(criterion.id) &&
