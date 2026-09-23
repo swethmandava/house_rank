@@ -18,6 +18,14 @@ export type HouseRankerBoard = {
   houses: House[];
   settings: HouseRankerSettings;
   hiddenHouseIds?: string[];
+  regrade?: {
+    settingsKey: string;
+    status: 'running' | 'complete' | 'partial' | 'failed';
+    pendingHouseIds: string[];
+    failedHouseIds?: string[];
+    startedAt: number;
+    completedAt?: number;
+  };
 };
 
 function getBoardDocument(boardId: string) {
@@ -36,10 +44,14 @@ function withoutUndefined<T>(data: T): T {
 }
 
 export function setBoardState(boardId: string, data: HouseRankerBoard) {
-  return setDoc(getBoardDocument(boardId), {
-    ...withoutUndefined(data),
-    updatedAt: serverTimestamp(),
-  });
+  return setDoc(
+    getBoardDocument(boardId),
+    {
+      ...withoutUndefined(data),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 export function mergeBoardState(
@@ -51,6 +63,11 @@ export function mergeBoardState(
     { ...withoutUndefined(data), updatedAt: serverTimestamp() },
     { merge: true },
   );
+}
+
+export async function getBoardState(boardId: string) {
+  const snapshot = await getDoc(getBoardDocument(boardId));
+  return snapshot.exists() ? (snapshot.data() as HouseRankerBoard) : undefined;
 }
 
 export function subscribeToBoardState(

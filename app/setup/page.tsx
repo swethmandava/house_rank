@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
   CircleCheck,
   Cloud,
   House as HouseIcon,
+  LoaderCircle,
   MapPin,
   Minus,
   Plus,
@@ -41,6 +42,7 @@ import {
   subscribeToBoardState,
 } from '@/lib/house-ranker-store';
 import { readJsonResponse } from '@/lib/http';
+import { gradingSettingsKey } from '@/lib/auto-grade-result';
 
 const priorityOptions = [
   {
@@ -104,6 +106,8 @@ export default function SetupPage() {
   const priorityOrderInitializedRef = useRef(false);
   const persistedSettingsRef = useRef('');
   const submittedSettingsRef = useRef(new Set<string>());
+  const lastQueuedRegradeKeyRef = useRef('');
+  const regradeTimerRef = useRef<number | null>(null);
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(
     null,
   );
@@ -116,14 +120,43 @@ export default function SetupPage() {
     'connecting' | 'saved' | 'saving' | 'error'
   >('connecting');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
+  const [regradeStatus, setRegradeStatus] = useState<
+    'idle' | 'running' | 'partial' | 'failed'
+  >('idle');
+
+  const queueBackgroundRegrade = useEffectEvent(
+    (savedSettings: HouseRankerSettings) => {
+      if (!boardId) return;
+      const settingsKey = gradingSettingsKey(savedSettings);
+      if (settingsKey === lastQueuedRegradeKeyRef.current) return;
+      if (regradeTimerRef.current !== null) {
+        window.clearTimeout(regradeTimerRef.current);
+      }
+      regradeTimerRef.current = window.setTimeout(() => {
+        lastQueuedRegradeKeyRef.current = settingsKey;
+        setRegradeStatus('running');
+        void fetch('/api/regrade-board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            boardId,
+            settingsKey,
+            timezoneOffset: new Date().getTimezoneOffset(),
+          }),
+          keepalive: true,
+        }).catch(() => setRegradeStatus('failed'));
+      }, 1200);
+    },
+  );
 
   useEffect(() => {
     if (!boardId) return;
     settingsReadyRef.current = false;
     priorityOrderInitializedRef.current = false;
     persistedSettingsRef.current = '';
+    lastQueuedRegradeKeyRef.current = '';
     submittedSettingsRef.current.clear();
-    return subscribeToBoardState(
+    const unsubscribe = subscribeToBoardState(
       boardId,
       (board) => {
         settingsReadyRef.current = true;
@@ -132,6 +165,14 @@ export default function SetupPage() {
         const isLocalEcho =
           submittedSettingsRef.current.has(serializedSettings);
         persistedSettingsRef.current = serializedSettings;
+        if (board?.regrade) {
+          lastQueuedRegradeKeyRef.current = board.regrade.settingsKey;
+          setRegradeStatus(
+            board.regrade.status === 'complete' ? 'idle' : board.regrade.status,
+          );
+        } else {
+          setRegradeStatus('idle');
+        }
         if (isLocalEcho) {
           setSyncStatus('saved');
           return;
@@ -151,6 +192,13 @@ export default function SetupPage() {
       },
       () => setSyncStatus('error'),
     );
+    return () => {
+      unsubscribe();
+      if (regradeTimerRef.current !== null) {
+        window.clearTimeout(regradeTimerRef.current);
+        regradeTimerRef.current = null;
+      }
+    };
   }, [boardId]);
 
   useEffect(() => {
@@ -181,6 +229,7 @@ export default function SetupPage() {
         .then(() => {
           persistedSettingsRef.current = serializedSettings;
           setSyncStatus('saved');
+          queueBackgroundRegrade(persistedSettings);
         })
         .catch(() => {
           submittedSettingsRef.current.delete(serializedSettings);
@@ -841,6 +890,21 @@ export default function SetupPage() {
               <span className="hidden items-center gap-1.5 text-xs text-destructive sm:inline-flex">
                 <Cloud className="size-3.5" aria-hidden="true" />
                 Sync issue
+              </span>
+            )}
+            {regradeStatus === 'running' && (
+              <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
+                <LoaderCircle
+                  className="size-3.5 animate-spin"
+                  aria-hidden="true"
+                />
+                Regrading homes
+              </span>
+            )}
+            {(regradeStatus === 'partial' || regradeStatus === 'failed') && (
+              <span className="hidden items-center gap-1.5 text-xs text-destructive sm:inline-flex">
+                <Cloud className="size-3.5" aria-hidden="true" />
+                Regrade issue
               </span>
             )}
             <div

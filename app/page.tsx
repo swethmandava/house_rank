@@ -75,6 +75,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  applyAutoGradeResult,
+  type AutoGradeResponse,
+} from '@/lib/auto-grade-result';
+import {
   buildSubjectiveAssessmentCriteria,
   criterionPriority,
   defaultCriteria,
@@ -83,8 +87,6 @@ import {
   type House,
   type HouseRankerPerson,
   type HouseRankerSettings,
-  placeCategoryLabels,
-  type PlaceCategory,
   type Priority,
   type Rating,
   normalizeSettings,
@@ -199,12 +201,6 @@ async function fetchListingResearch(
     throw new Error(data.error || 'Could not research this listing');
   }
   return data.research;
-}
-
-function formatDistance(distanceMeters: number) {
-  return distanceMeters < 1000
-    ? `${distanceMeters} m`
-    : `${(distanceMeters / 1000).toFixed(1)} km`;
 }
 
 function initialForName(name: string) {
@@ -349,47 +345,8 @@ function ratingDetails(
   return [`Based on ${criterion.autoNote.toLowerCase()}`];
 }
 
-function schoolSummaryText(matchesByLevel: SchoolLevelMatch[]) {
-  if (!matchesByLevel.length) return 'Select at least one school level';
-  const suitableOptions = matchesByLevel.reduce(
-    (sum, level) => sum + level.suitableOptionCount,
-    0,
-  );
-  const maxTravelMinutes = matchesByLevel[0].maxTravelMinutes;
-  const minimumRating = matchesByLevel[0].minimumRating;
-  return `${suitableOptions} suitable school option${suitableOptions === 1 ? '' : 's'} rated ${minimumRating}+/10 across ${matchesByLevel.length} selected level${matchesByLevel.length === 1 ? '' : 's'} · up to ${maxTravelMinutes} min`;
-}
-
-function schoolMatchText(match: SchoolMatch) {
-  const sector =
-    match.sector === 'preschool'
-      ? ''
-      : match.sector === 'public' || match.sector === 'private'
-        ? `${match.sector === 'public' ? 'Public' : 'Private'} · `
-        : '';
-  const travel =
-    typeof match.driveMinutes === 'number'
-      ? `${match.driveMinutes} min`
-      : `${match.distanceMiles.toFixed(1)} mi`;
-  return `${sector}${match.name} · ${travel} · ${schoolRatingLabel(match)}`;
-}
-
 function schoolRatingLabel(match: SchoolMatch) {
   return match.ratingBand.replace(/^Private staffing proxy/, 'Proxy Score');
-}
-
-function schoolMatchSources(matchesByLevel: SchoolLevelMatch[]) {
-  const sources = new Map<string, { title: string; url: string }>();
-  for (const level of matchesByLevel) {
-    for (const match of level.topOptions) {
-      if (!match.overviewUrl) continue;
-      sources.set(match.overviewUrl, {
-        title: `${match.name} profile`,
-        url: match.overviewUrl,
-      });
-    }
-  }
-  return [...sources.values()];
 }
 
 function schoolResultsMatchSettings(
@@ -566,6 +523,9 @@ export default function Home() {
     null,
   );
   const [gradingHouseIds, setGradingHouseIds] = useState<string[]>([]);
+  const [remoteGradingHouseIds, setRemoteGradingHouseIds] = useState<string[]>(
+    [],
+  );
   const [recomputingCriterionKey, setRecomputingCriterionKey] = useState<
     string | null
   >(null);
@@ -598,6 +558,11 @@ export default function Home() {
         setSettings(nextSettings);
         setCriteria(nextSettings.criteria);
         setHiddenHouseIds(nextHiddenHouseIds);
+        setRemoteGradingHouseIds(
+          board?.regrade?.status === 'running'
+            ? board.regrade.pendingHouseIds
+            : [],
+        );
         setSyncStatus('saved');
         if (!exists) {
           void setBoardState(boardId, {
@@ -813,6 +778,10 @@ export default function Home() {
     [houses, settings.budget, settings.schools],
   );
   const people = settings.people;
+  const activeGradingHouseIds = useMemo(
+    () => [...new Set([...gradingHouseIds, ...remoteGradingHouseIds])],
+    [gradingHouseIds, remoteGradingHouseIds],
+  );
   const activeCriteria = useMemo(
     () =>
       criteria.filter(
@@ -969,41 +938,7 @@ export default function Home() {
           timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });
-      const grade = await readJsonResponse<{
-        error?: string;
-        commute: null | {
-          minutes: number[];
-          bestModes?: Array<string | null>;
-          averageMinutes: number;
-          grade: number;
-        };
-        walkability:
-          | { unavailable: true; reason: string }
-          | {
-              places: Array<{
-                category: PlaceCategory;
-                name: string | null;
-                distanceMeters: number | null;
-                walkingMinutes: number | null;
-              }>;
-              averageMinutes: number;
-              grade: number;
-            };
-        schools:
-          | { unavailable: true; reason: string }
-          | {
-              matchesByLevel: SchoolLevelMatch[];
-              grade: number | null;
-            };
-        subjectiveRatings: Array<{
-          criterionId: string;
-          score: number;
-          rationale: string;
-          evidence: string[];
-          confidence: 'low' | 'medium' | 'high';
-          sources: Array<{ title: string; url: string }>;
-        }>;
-      }>(result);
+      const grade = await readJsonResponse<AutoGradeResponse>(result);
       if (!result.ok) {
         return {
           success: false,
@@ -1033,116 +968,11 @@ export default function Home() {
               ? grade.schools.reason
               : undefined;
       setHouses((current) =>
-        current.map((item) => {
-          if (item.id !== house.id) return item;
-          const commuteText = grade.commute
-            ? `${grade.commute.averageMinutes} min average · ${grade.commute.minutes.join(' / ')} min`
-            : 'Add commute addresses in setup';
-          const nearbyText =
-            'unavailable' in grade.walkability
-              ? grade.walkability.reason
-              : `${grade.walkability.averageMinutes} min average walk · ${grade.walkability.places.length} essentials`;
-          const schoolsText =
-            'unavailable' in grade.schools
-              ? grade.schools.reason
-              : schoolSummaryText(grade.schools.matchesByLevel);
-          const commuteDetails = grade.commute
-            ? grade.commute.minutes.map((minutes, index) => {
-                const mode = grade.commute?.bestModes?.[index]?.replace(
-                  '_',
-                  ' ',
-                );
-                const destination = settings.commute.addresses[index];
-                return `${minutes} min${mode ? ` · ${mode}` : ''}${destination ? ` to ${destination}` : ''}`;
-              })
-            : [];
-          const walkabilityDetails =
-            'unavailable' in grade.walkability
-              ? []
-              : grade.walkability.places
-                  .filter(
-                    (place) =>
-                      place.name &&
-                      place.distanceMeters !== null &&
-                      place.walkingMinutes !== null,
-                  )
-                  .map(
-                    (place) =>
-                      `${placeCategoryLabels[place.category]} — ${place.name} · ${formatDistance(place.distanceMeters!)} · ~${place.walkingMinutes} min walk`,
-                  );
-          const schoolDetails =
-            'unavailable' in grade.schools
-              ? []
-              : grade.schools.matchesByLevel.flatMap((level) => [
-                  `${level.levelLabel} access: ${level.levelScore.toFixed(1)}/5 · ${level.suitableOptionCount} option${level.suitableOptionCount === 1 ? '' : 's'} rated ${level.minimumRating}+/10 within ${level.maxTravelMinutes} min`,
-                  `${level.levelLabel} closest suitable: ${level.closestSuitable ? schoolMatchText(level.closestSuitable) : 'No suitable option within the travel limit'}`,
-                  `${level.levelLabel} best suitable: ${level.bestReachable ? schoolMatchText(level.bestReachable) : 'No school meets the minimum rating within the travel limit'}`,
-                ]);
-          const schoolSources =
-            'unavailable' in grade.schools
-              ? []
-              : schoolMatchSources(grade.schools.matchesByLevel);
-          const compactSchoolLevels =
-            'unavailable' in grade.schools
-              ? []
-              : grade.schools.matchesByLevel.map((level) => ({
-                  ...level,
-                  candidateOptions: [],
-                }));
-          const subjectiveRatings = Object.fromEntries(
-            (grade.subjectiveRatings ?? []).map((rating) => [
-              rating.criterionId,
-              {
-                ...item.ratings[rating.criterionId],
-                auto: rating.score,
-                details: rating.evidence,
-                rationale: rating.rationale,
-                confidence: rating.confidence,
-                sources: rating.sources,
-              },
-            ]),
-          );
-          return {
-            ...item,
-            commute: commuteText,
-            nearby: nearbyText,
-            schools: schoolsText,
-            ratings: {
-              ...item.ratings,
-              ...subjectiveRatings,
-              ...(grade.commute
-                ? {
-                    commute: {
-                      ...item.ratings.commute,
-                      auto: grade.commute.grade,
-                      details: commuteDetails,
-                    },
-                  }
-                : {}),
-              ...('grade' in grade.walkability
-                ? {
-                    walkable: {
-                      ...item.ratings.walkable,
-                      auto: grade.walkability.grade,
-                      details: walkabilityDetails,
-                    },
-                  }
-                : {}),
-              ...('grade' in grade.schools &&
-              typeof grade.schools.grade === 'number'
-                ? {
-                    schools: {
-                      ...item.ratings.schools,
-                      auto: grade.schools.grade,
-                      details: schoolDetails,
-                      schoolLevels: compactSchoolLevels,
-                      sources: schoolSources,
-                    },
-                  }
-                : {}),
-            },
-          };
-        }),
+        current.map((item) =>
+          item.id === house.id
+            ? applyAutoGradeResult(item, grade, settings)
+            : item,
+        ),
       );
       return {
         success: requestedGradeAvailable,
@@ -1168,18 +998,23 @@ export default function Home() {
   });
 
   useEffect(() => {
-    if (!remoteReady.current) return;
+    if (!remoteReady.current || remoteGradingHouseIds.length) return;
     const settingsKey = JSON.stringify(settings.schools);
-    for (const house of houses) {
-      if (schoolResultsMatchSettings(house.ratings.schools, settings.schools)) {
-        continue;
+    const timer = window.setTimeout(() => {
+      for (const house of houses) {
+        if (
+          schoolResultsMatchSettings(house.ratings.schools, settings.schools)
+        ) {
+          continue;
+        }
+        const refreshKey = `${house.id}:${settingsKey}`;
+        if (schoolRefreshesRef.current.has(refreshKey)) continue;
+        schoolRefreshesRef.current.add(refreshKey);
+        refreshStaleSchoolResult(house);
       }
-      const refreshKey = `${house.id}:${settingsKey}`;
-      if (schoolRefreshesRef.current.has(refreshKey)) continue;
-      schoolRefreshesRef.current.add(refreshKey);
-      refreshStaleSchoolResult(house);
-    }
-  }, [houses, settings.schools]);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [houses, remoteGradingHouseIds, settings.schools]);
 
   async function recomputeHouse(house: House) {
     setRecomputingHouseId(house.id);
@@ -1500,7 +1335,7 @@ export default function Home() {
                 {visibleHouses.map((house) => {
                   const summary = houseSummary(house, activeCriteria, people);
                   const pending = summary.graded < activeCriteria.length;
-                  const isGrading = gradingHouseIds.includes(house.id);
+                  const isGrading = activeGradingHouseIds.includes(house.id);
                   const listingPrice = parsePrice(house.price);
                   const [streetAddress, ...localityParts] = house.name
                     .split(',')
@@ -1625,7 +1460,7 @@ export default function Home() {
                   houses={visibleHouses}
                   people={people}
                   expandedCriterionIds={expandedCriterionIds}
-                  gradingHouseIds={gradingHouseIds}
+                  gradingHouseIds={activeGradingHouseIds}
                   recomputingCriterionKey={recomputingCriterionKey}
                   onOpenRating={openRating}
                 />
@@ -1812,7 +1647,7 @@ export default function Home() {
                           `${selectedHouse.id}:${criterion.id}`
                         }
                         grading={
-                          gradingHouseIds.includes(selectedHouse.id) ||
+                          activeGradingHouseIds.includes(selectedHouse.id) ||
                           recomputingCriterionKey ===
                             `${selectedHouse.id}:${criterion.id}`
                         }
