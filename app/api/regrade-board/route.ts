@@ -13,6 +13,7 @@ import {
 import {
   getServerBoardState,
   mergeServerBoardState,
+  setServerHouseState,
 } from '@/lib/house-ranker-server-store';
 
 const RUNNING_JOB_TIMEOUT_MS = 15 * 60 * 1000;
@@ -95,8 +96,12 @@ export async function POST(request: Request) {
       ),
     );
     const startedAt = Date.now();
+    await Promise.all(
+      invalidatedHouses.map((house, position) =>
+        setServerHouseState(body.boardId as string, house, position),
+      ),
+    );
     await mergeServerBoardState(body.boardId, {
-      houses: invalidatedHouses,
       regrade: {
         settingsKey,
         criterionIds,
@@ -148,14 +153,21 @@ export async function POST(request: Request) {
             ? ('partial' as const)
             : ('complete' as const);
 
+        if (grade) {
+          const position = latestBoard.houses.findIndex(
+            (house) => house.id === houseId,
+          );
+          const house = latestBoard.houses[position];
+          if (house) {
+            await setServerHouseState(
+              body.boardId as string,
+              applyAutoGradeResult(house, grade, settings, criterionIds),
+              position,
+            );
+          }
+        }
+
         await mergeServerBoardState(body.boardId as string, {
-          houses: grade
-            ? latestBoard.houses.map((house) =>
-                house.id === houseId
-                  ? applyAutoGradeResult(house, grade, settings, criterionIds)
-                  : house,
-              )
-            : latestBoard.houses,
           regrade: {
             settingsKey,
             criterionIds,
