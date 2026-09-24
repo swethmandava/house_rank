@@ -1,13 +1,14 @@
 import { handleAutoGradeRequest } from '@/api/auto-grade';
 import {
   applyAutoGradeResult,
-  gradingSettingsKey,
   type AutoGradeResponse,
 } from '@/lib/auto-grade-result';
 import {
   buildSubjectiveAssessmentCriteria,
+  gradingSettingsKey,
   invalidateAutoGrades,
   normalizeSettings,
+  removeHouseCriteria,
 } from '@/lib/house-ranker';
 import {
   getServerBoardState,
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
     boardId?: unknown;
     settingsKey?: unknown;
     timezoneOffset?: unknown;
+    criterionIds?: unknown;
+    removedCriterionIds?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -47,30 +50,69 @@ export async function POST(request: Request) {
     if (settingsKey !== body.settingsKey) {
       return Response.json({ status: 'superseded' }, { status: 409 });
     }
+    const currentCriterionIds = new Set(
+      settings.criteria.map((criterion) => criterion.id),
+    );
+    const requestedCriterionIds = Array.isArray(body.criterionIds)
+      ? body.criterionIds.filter(
+          (criterionId): criterionId is string =>
+            typeof criterionId === 'string' &&
+            criterionId !== 'budget' &&
+            currentCriterionIds.has(criterionId),
+        )
+      : [];
+    const removedCriterionIds = Array.isArray(body.removedCriterionIds)
+      ? body.removedCriterionIds.filter(
+          (criterionId): criterionId is string =>
+            typeof criterionId === 'string' &&
+            !currentCriterionIds.has(criterionId),
+        )
+      : [];
+    const interruptedCriterionIds =
+      board.regrade?.status === 'running'
+        ? (board.regrade.criterionIds ?? [])
+        : [];
+    const criterionIds = [
+      ...new Set([...interruptedCriterionIds, ...requestedCriterionIds]),
+    ].filter((criterionId) => currentCriterionIds.has(criterionId));
+
     if (
       board.regrade?.status === 'running' &&
       board.regrade.settingsKey === settingsKey &&
+      criterionIds.every((criterionId) =>
+        board.regrade?.criterionIds?.includes(criterionId),
+      ) &&
       Date.now() - board.regrade.startedAt < RUNNING_JOB_TIMEOUT_MS
     ) {
       return Response.json({ status: 'already-running' }, { status: 202 });
     }
 
     const houses = board.houses;
-    const invalidatedHouses = houses.map(invalidateAutoGrades);
+    const invalidatedHouses = houses.map((house) =>
+      removeHouseCriteria(
+        invalidateAutoGrades(house, criterionIds),
+        removedCriterionIds,
+      ),
+    );
     const startedAt = Date.now();
     await mergeServerBoardState(body.boardId, {
       houses: invalidatedHouses,
       regrade: {
         settingsKey,
+        criterionIds,
+        removedCriterionIds,
         status: 'running',
-        pendingHouseIds: houses.map((house) => house.id),
+        pendingHouseIds: criterionIds.length
+          ? houses.map((house) => house.id)
+          : [],
         startedAt,
       },
     });
 
+    const targetCriterionIds = new Set(criterionIds);
     const subjectiveCriteria = buildSubjectiveAssessmentCriteria(
       settings.criteria,
-    );
+    ).filter((criterion) => targetCriterionIds.has(criterion.id));
     const timezoneOffset =
       typeof body.timezoneOffset === 'number' ? body.timezoneOffset : 0;
     let persistQueue = Promise.resolve();
@@ -110,12 +152,14 @@ export async function POST(request: Request) {
           houses: grade
             ? latestBoard.houses.map((house) =>
                 house.id === houseId
-                  ? applyAutoGradeResult(house, grade, settings)
+                  ? applyAutoGradeResult(house, grade, settings, criterionIds)
                   : house,
               )
             : latestBoard.houses,
           regrade: {
             settingsKey,
+            criterionIds,
+            removedCriterionIds,
             status,
             pendingHouseIds,
             failedHouseIds,
@@ -128,10 +172,12 @@ export async function POST(request: Request) {
       return operation;
     };
 
-    if (!houses.length) {
+    if (!houses.length || !criterionIds.length) {
       await mergeServerBoardState(body.boardId, {
         regrade: {
           settingsKey,
+          criterionIds,
+          removedCriterionIds,
           status: 'complete',
           pendingHouseIds: [],
           failedHouseIds: [],
@@ -154,6 +200,7 @@ export async function POST(request: Request) {
             walkability: settings.walkability,
             schools: settings.schools,
             subjectiveCriteria,
+            requestedCriterionIds: criterionIds,
             timeZoneOffsetMinutes: timezoneOffset,
           });
           grade = result.body as AutoGradeResponse;

@@ -526,6 +526,9 @@ export default function Home() {
   const [remoteGradingHouseIds, setRemoteGradingHouseIds] = useState<string[]>(
     [],
   );
+  const [remoteGradingCriterionIds, setRemoteGradingCriterionIds] = useState<
+    string[]
+  >([]);
   const [recomputingCriterionKey, setRecomputingCriterionKey] = useState<
     string | null
   >(null);
@@ -561,6 +564,12 @@ export default function Home() {
         setRemoteGradingHouseIds(
           board?.regrade?.status === 'running'
             ? board.regrade.pendingHouseIds
+            : [],
+        );
+        setRemoteGradingCriterionIds(
+          board?.regrade?.status === 'running'
+            ? (board.regrade.criterionIds ??
+                nextSettings.criteria.map((criterion) => criterion.id))
             : [],
         );
         setSyncStatus('saved');
@@ -789,6 +798,25 @@ export default function Home() {
       ),
     [criteria, people],
   );
+  const activeGradingCriterionKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const houseId of gradingHouseIds) {
+      for (const criterion of activeCriteria) {
+        keys.add(`${houseId}:${criterion.id}`);
+      }
+    }
+    for (const houseId of remoteGradingHouseIds) {
+      for (const criterionId of remoteGradingCriterionIds) {
+        keys.add(`${houseId}:${criterionId}`);
+      }
+    }
+    return keys;
+  }, [
+    activeCriteria,
+    gradingHouseIds,
+    remoteGradingCriterionIds,
+    remoteGradingHouseIds,
+  ]);
 
   const selectedHouse = useMemo(
     () => rankedHouses.find((house) => house.id === selectedHouseId) ?? null,
@@ -918,9 +946,11 @@ export default function Home() {
     includeSubjective = true,
     requiredCriterionId?: string,
   ): Promise<{ success: boolean; score?: number; error?: string }> {
-    setGradingHouseIds((current) =>
-      current.includes(house.id) ? current : [...current, house.id],
-    );
+    if (!requiredCriterionId) {
+      setGradingHouseIds((current) =>
+        current.includes(house.id) ? current : [...current, house.id],
+      );
+    }
     try {
       const result = await fetch('/api/auto-grade', {
         method: 'POST',
@@ -935,6 +965,9 @@ export default function Home() {
           subjectiveCriteria: includeSubjective
             ? buildSubjectiveAssessmentCriteria(activeCriteria)
             : [],
+          ...(requiredCriterionId
+            ? { requestedCriterionIds: [requiredCriterionId] }
+            : {}),
           timeZoneOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });
@@ -987,9 +1020,11 @@ export default function Home() {
           error instanceof Error ? error.message : 'Automatic grading failed',
       };
     } finally {
-      setGradingHouseIds((current) =>
-        current.filter((houseId) => houseId !== house.id),
-      );
+      if (!requiredCriterionId) {
+        setGradingHouseIds((current) =>
+          current.filter((houseId) => houseId !== house.id),
+        );
+      }
     }
   }
 
@@ -1460,7 +1495,7 @@ export default function Home() {
                   houses={visibleHouses}
                   people={people}
                   expandedCriterionIds={expandedCriterionIds}
-                  gradingHouseIds={activeGradingHouseIds}
+                  gradingCriterionKeys={activeGradingCriterionKeys}
                   recomputingCriterionKey={recomputingCriterionKey}
                   onOpenRating={openRating}
                 />
@@ -1647,7 +1682,9 @@ export default function Home() {
                           `${selectedHouse.id}:${criterion.id}`
                         }
                         grading={
-                          activeGradingHouseIds.includes(selectedHouse.id) ||
+                          activeGradingCriterionKeys.has(
+                            `${selectedHouse.id}:${criterion.id}`,
+                          ) ||
                           recomputingCriterionKey ===
                             `${selectedHouse.id}:${criterion.id}`
                         }
@@ -2059,7 +2096,7 @@ function FragmentGroup({
   houses,
   people,
   expandedCriterionIds,
-  gradingHouseIds,
+  gradingCriterionKeys,
   recomputingCriterionKey,
   onOpenRating,
 }: {
@@ -2068,7 +2105,7 @@ function FragmentGroup({
   houses: House[];
   people: HouseRankerPerson[];
   expandedCriterionIds: string[];
-  gradingHouseIds: string[];
+  gradingCriterionKeys: ReadonlySet<string>;
   recomputingCriterionKey: string | null;
   onOpenRating: (houseId: string, criterionId: string) => void;
 }) {
@@ -2109,7 +2146,7 @@ function FragmentGroup({
               const rating = house.ratings[criterion.id];
               const score = effectiveScore(rating);
               const isGrading =
-                gradingHouseIds.includes(house.id) ||
+                gradingCriterionKeys.has(`${house.id}:${criterion.id}`) ||
                 recomputingCriterionKey === `${house.id}:${criterion.id}`;
               const isIssue =
                 people.some(

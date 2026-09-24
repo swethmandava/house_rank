@@ -184,24 +184,132 @@ export function scoreTravelTime(minutes: number, targetMinutes: number) {
   return Math.max(0, Math.min(5, Math.round(score * 10) / 10));
 }
 
-export function invalidateAutoGrades(house: House): House {
+export function invalidateAutoGrades(
+  house: House,
+  criterionIds?: Iterable<string>,
+): House {
+  const targets = new Set(
+    criterionIds ?? [
+      ...Object.keys(house.ratings),
+      'commute',
+      'walkable',
+      'schools',
+    ],
+  );
+  const ratings = { ...house.ratings };
+  for (const criterionId of targets) {
+    const rating = house.ratings[criterionId];
+    ratings[criterionId] = {
+      auto: null,
+      ...(rating?.override === undefined ? {} : { override: rating.override }),
+    };
+  }
   return {
     ...house,
-    commute: 'Recompute to use the updated setup',
-    nearby: 'Recompute to use the updated setup',
-    schools: 'Recompute to use the updated setup',
-    ratings: Object.fromEntries(
-      Object.entries(house.ratings).map(([criterionId, rating]) => [
-        criterionId,
-        {
-          auto: null,
-          ...(rating.override === undefined
-            ? {}
-            : { override: rating.override }),
-        },
-      ]),
-    ),
+    commute: targets.has('commute')
+      ? 'Recompute to use the updated setup'
+      : house.commute,
+    nearby: targets.has('walkable')
+      ? 'Recompute to use the updated setup'
+      : house.nearby,
+    schools: targets.has('schools')
+      ? 'Recompute to use the updated setup'
+      : house.schools,
+    ratings,
   };
+}
+
+export function removeHouseCriteria(
+  house: House,
+  criterionIds: Iterable<string>,
+): House {
+  const ratings = { ...house.ratings };
+  for (const criterionId of criterionIds) delete ratings[criterionId];
+  return { ...house, ratings };
+}
+
+export function gradingSettingsKey(settings: HouseRankerSettings) {
+  return JSON.stringify({
+    commute: settings.commute,
+    walkability: settings.walkability,
+    schools: settings.schools,
+    criteria: settings.criteria
+      .map((criterion) => ({
+        id: criterion.id,
+        label: criterion.label,
+        assessmentPrompt: criterion.assessmentPrompt?.trim() || '',
+        guidanceMode: criterion.guidanceMode ?? '',
+        autoNote: criterion.autoNote,
+      }))
+      .sort((first, second) => first.id.localeCompare(second.id)),
+  });
+}
+
+export type GradeImpact = {
+  criterionIds: string[];
+  removedCriterionIds: string[];
+};
+
+const computedGradeSettings = {
+  commute: (settings: HouseRankerSettings) => settings.commute,
+  walkable: (settings: HouseRankerSettings) => settings.walkability,
+  schools: (settings: HouseRankerSettings) => settings.schools,
+} as const;
+
+export function gradeImpact(
+  previous: HouseRankerSettings,
+  next: HouseRankerSettings,
+): GradeImpact {
+  const criterionIds = new Set<string>();
+  for (const [criterionId, selectSettings] of Object.entries(
+    computedGradeSettings,
+  )) {
+    if (
+      JSON.stringify(selectSettings(previous)) !==
+      JSON.stringify(selectSettings(next))
+    ) {
+      criterionIds.add(criterionId);
+    }
+  }
+
+  const previousCriteria = new Map(
+    previous.criteria.map((criterion) => [criterion.id, criterion]),
+  );
+  const nextCriteria = new Map(
+    next.criteria.map((criterion) => [criterion.id, criterion]),
+  );
+  const removedCriterionIds = [...previousCriteria.keys()].filter(
+    (criterionId) => !nextCriteria.has(criterionId),
+  );
+
+  for (const criterion of next.criteria) {
+    if (
+      Object.hasOwn(computedGradeSettings, criterion.id) ||
+      criterion.id === 'budget'
+    ) {
+      continue;
+    }
+    const previousCriterion = previousCriteria.get(criterion.id);
+    const gradingDefinition = JSON.stringify({
+      label: criterion.label,
+      assessmentPrompt: criterion.assessmentPrompt?.trim() || '',
+      guidanceMode: criterion.guidanceMode ?? '',
+      autoNote: criterion.autoNote,
+    });
+    const previousDefinition = previousCriterion
+      ? JSON.stringify({
+          label: previousCriterion.label,
+          assessmentPrompt: previousCriterion.assessmentPrompt?.trim() || '',
+          guidanceMode: previousCriterion.guidanceMode ?? '',
+          autoNote: previousCriterion.autoNote,
+        })
+      : null;
+    if (gradingDefinition !== previousDefinition) {
+      criterionIds.add(criterion.id);
+    }
+  }
+
+  return { criterionIds: [...criterionIds], removedCriterionIds };
 }
 
 export function normalizeSettings(

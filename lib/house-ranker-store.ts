@@ -20,6 +20,8 @@ export type HouseRankerBoard = {
   hiddenHouseIds?: string[];
   regrade?: {
     settingsKey: string;
+    criterionIds?: string[];
+    removedCriterionIds?: string[];
     status: 'running' | 'complete' | 'partial' | 'failed';
     pendingHouseIds: string[];
     failedHouseIds?: string[];

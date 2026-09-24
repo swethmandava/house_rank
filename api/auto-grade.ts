@@ -40,6 +40,7 @@ type AutoGradeRequest = {
     priorities: Record<string, 'must' | 'nice' | 'neutral'>;
     suggestedEvidence: string;
   }>;
+  requestedCriterionIds?: string[];
   listingUrl?: string;
   notes?: string;
   timeZoneOffsetMinutes?: number;
@@ -75,6 +76,14 @@ export async function handleAutoGradeRequest(
 
   const appId = process.env.TRAVELTIME_APP_ID;
   const apiKey = process.env.TRAVELTIME_API_KEY;
+  const requestedCriterionIds = Array.isArray(input.requestedCriterionIds)
+    ? new Set(input.requestedCriterionIds)
+    : null;
+  const shouldGrade = (criterionId: string) =>
+    !requestedCriterionIds || requestedCriterionIds.has(criterionId);
+  const gradeCommute = shouldGrade('commute');
+  const gradeWalkability = shouldGrade('walkable');
+  const gradeSchools = shouldGrade('schools');
   const subjectiveRatingsPromise = input.subjectiveCriteria?.length
     ? rateHouseCharacteristics(
         {
@@ -85,33 +94,55 @@ export async function handleAutoGradeRequest(
         input.subjectiveCriteria,
       ).catch(() => [])
     : Promise.resolve([]);
-  const houseCoordinatesPromise = geocodeHouseAddress(
-    input.houseAddress,
-    appId,
-    apiKey,
-  );
-  const schoolsPromise = houseCoordinatesPromise
-    .then(async (coordinates) => {
-      const schools = rankNearbySchools(
-        coordinates,
-        input.schools,
-        sanFranciscoSchools,
-        sanFranciscoPreschools,
-      );
-      if (!appId || !apiKey) return schools;
-      return calculateSchoolDriveTimes(
-        coordinates,
-        schools,
-        input.timeZoneOffsetMinutes ?? 0,
-        appId,
-        apiKey,
-      ).catch(() => schools);
-    })
-    .catch((error) => ({
-      unavailable: true as const,
-      reason:
-        error instanceof Error ? error.message : 'School research unavailable',
-    }));
+  const needsCoordinates = gradeCommute || gradeWalkability || gradeSchools;
+  const houseCoordinatesPromise = needsCoordinates
+    ? geocodeHouseAddress(input.houseAddress, appId, apiKey)
+    : null;
+  const schoolsPromise =
+    gradeSchools && houseCoordinatesPromise
+      ? houseCoordinatesPromise
+          .then(async (coordinates) => {
+            const schools = rankNearbySchools(
+              coordinates,
+              input.schools,
+              sanFranciscoSchools,
+              sanFranciscoPreschools,
+            );
+            if (!appId || !apiKey) return schools;
+            return calculateSchoolDriveTimes(
+              coordinates,
+              schools,
+              input.timeZoneOffsetMinutes ?? 0,
+              appId,
+              apiKey,
+            ).catch(() => schools);
+          })
+          .catch((error) => ({
+            unavailable: true as const,
+            reason:
+              error instanceof Error
+                ? error.message
+                : 'School research unavailable',
+          }))
+      : Promise.resolve({
+          unavailable: true as const,
+          reason: 'School grading was not requested',
+        });
+
+  if (!needsCoordinates) {
+    return {
+      status: 200,
+      body: {
+        commute: null,
+        walkability: {
+          unavailable: true,
+          reason: 'Walkability grading was not requested',
+        },
+        schools: await schoolsPromise,
+        subjectiveRatings: await subjectiveRatingsPromise,
+      },
+    };
+  }
   if (!appId || !apiKey) {
     return {
       status: 200,
@@ -133,15 +164,17 @@ export async function handleAutoGradeRequest(
       .filter(Boolean)
       .slice(0, 10);
     const [houseCoordinates, ...destinationCoordinates] = await Promise.all([
-      houseCoordinatesPromise,
-      ...commuteAddresses.map((address) =>
-        geocodeTravelTime(address, appId, apiKey),
-      ),
+      houseCoordinatesPromise!,
+      ...(gradeCommute
+        ? commuteAddresses.map((address) =>
+            geocodeTravelTime(address, appId, apiKey),
+          )
+        : []),
     ]);
 
     const [commute, walkability, schools, subjectiveRatings] =
       await Promise.all([
-        destinationCoordinates.length
+        gradeCommute && destinationCoordinates.length
           ? calculateCommute(
               houseCoordinates,
               destinationCoordinates,
@@ -150,15 +183,20 @@ export async function handleAutoGradeRequest(
               apiKey,
             )
           : null,
-        calculateWalkability(houseCoordinates, input, appId, apiKey).catch(
-          (error) => ({
-            unavailable: true as const,
-            reason:
-              error instanceof Error
-                ? error.message
-                : 'Walkability unavailable',
-          }),
-        ),
+        gradeWalkability
+          ? calculateWalkability(houseCoordinates, input, appId, apiKey).catch(
+              (error) => ({
+                unavailable: true as const,
+                reason:
+                  error instanceof Error
+                    ? error.message
+                    : 'Walkability unavailable',
+              }),
+            )
+          : {
+              unavailable: true as const,
+              reason: 'Walkability grading was not requested',
+            },
         schoolsPromise,
         subjectiveRatingsPromise,
       ]);

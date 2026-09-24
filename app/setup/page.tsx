@@ -26,6 +26,9 @@ import {
   computedCriteria,
   criterionPriority,
   defaultSettings,
+  gradeImpact,
+  gradingSettingsKey,
+  type GradeImpact,
   type CommuteMode,
   type HouseRankerSettings,
   normalizeSettings,
@@ -42,7 +45,6 @@ import {
   subscribeToBoardState,
 } from '@/lib/house-ranker-store';
 import { readJsonResponse } from '@/lib/http';
-import { gradingSettingsKey } from '@/lib/auto-grade-result';
 
 const priorityOptions = [
   {
@@ -107,6 +109,10 @@ export default function SetupPage() {
   const persistedSettingsRef = useRef('');
   const submittedSettingsRef = useRef(new Set<string>());
   const lastQueuedRegradeKeyRef = useRef('');
+  const lastRegradeImpactRef = useRef<GradeImpact>({
+    criterionIds: [],
+    removedCriterionIds: [],
+  });
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(
     null,
   );
@@ -124,11 +130,19 @@ export default function SetupPage() {
   >('idle');
 
   const queueBackgroundRegrade = useCallback(
-    (savedSettings: HouseRankerSettings, force = false) => {
+    (
+      savedSettings: HouseRankerSettings,
+      impact: GradeImpact,
+      force = false,
+    ) => {
       if (!boardId) return;
+      if (!impact.criterionIds.length && !impact.removedCriterionIds.length) {
+        return;
+      }
       const settingsKey = gradingSettingsKey(savedSettings);
       if (!force && settingsKey === lastQueuedRegradeKeyRef.current) return;
       lastQueuedRegradeKeyRef.current = settingsKey;
+      lastRegradeImpactRef.current = impact;
       setRegradeStatus('running');
       void fetch('/api/regrade-board', {
         method: 'POST',
@@ -136,6 +150,8 @@ export default function SetupPage() {
         body: JSON.stringify({
           boardId,
           settingsKey,
+          criterionIds: impact.criterionIds,
+          removedCriterionIds: impact.removedCriterionIds,
           timezoneOffset: new Date().getTimezoneOffset(),
         }),
         keepalive: true,
@@ -168,6 +184,10 @@ export default function SetupPage() {
         persistedSettingsRef.current = serializedSettings;
         if (board?.regrade) {
           lastQueuedRegradeKeyRef.current = board.regrade.settingsKey;
+          lastRegradeImpactRef.current = {
+            criterionIds: board.regrade.criterionIds ?? [],
+            removedCriterionIds: board.regrade.removedCriterionIds ?? [],
+          };
           setRegradeStatus(
             board.regrade.status === 'complete' ? 'idle' : board.regrade.status,
           );
@@ -208,6 +228,10 @@ export default function SetupPage() {
     };
     const serializedSettings = JSON.stringify(persistedSettings);
     if (serializedSettings === persistedSettingsRef.current) return;
+    const previousSettings = normalizeSettings(
+      JSON.parse(persistedSettingsRef.current) as HouseRankerSettings,
+    );
+    const impact = gradeImpact(previousSettings, persistedSettings);
 
     const timer = window.setTimeout(() => {
       setSyncStatus('saving');
@@ -224,7 +248,7 @@ export default function SetupPage() {
         .then(() => {
           persistedSettingsRef.current = serializedSettings;
           setSyncStatus('saved');
-          queueBackgroundRegrade(persistedSettings);
+          queueBackgroundRegrade(persistedSettings, impact);
         })
         .catch(() => {
           submittedSettingsRef.current.delete(serializedSettings);
@@ -900,7 +924,13 @@ export default function SetupPage() {
               <button
                 type="button"
                 className="hidden items-center gap-1.5 text-xs text-destructive hover:underline sm:inline-flex"
-                onClick={() => queueBackgroundRegrade(settings, true)}
+                onClick={() =>
+                  queueBackgroundRegrade(
+                    settings,
+                    lastRegradeImpactRef.current,
+                    true,
+                  )
+                }
               >
                 <Cloud className="size-3.5" aria-hidden="true" />
                 Retry regrade

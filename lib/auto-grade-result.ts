@@ -43,28 +43,20 @@ export type AutoGradeResponse = {
   }>;
 };
 
-export function gradingSettingsKey(settings: HouseRankerSettings) {
-  return JSON.stringify({
-    budget: settings.budget,
-    commute: settings.commute,
-    walkability: settings.walkability,
-    schools: settings.schools,
-    criteria: settings.criteria.map((criterion) => ({
-      id: criterion.id,
-      label: criterion.label,
-      priorities: criterion.priorities,
-      assessmentPrompt: criterion.assessmentPrompt?.trim() || '',
-      guidanceMode: criterion.guidanceMode ?? '',
-      autoNote: criterion.autoNote,
-    })),
-  });
-}
-
 export function applyAutoGradeResult(
   house: House,
   grade: AutoGradeResponse,
   settings: HouseRankerSettings,
+  criterionIds?: Iterable<string>,
 ): House {
+  const targets = new Set(
+    criterionIds ?? [
+      'commute',
+      'walkable',
+      'schools',
+      ...grade.subjectiveRatings.map((rating) => rating.criterionId),
+    ],
+  );
   const commuteText = grade.commute
     ? `${grade.commute.averageMinutes} min average · ${grade.commute.minutes.join(' / ')} min`
     : 'Add commute addresses in setup';
@@ -122,28 +114,30 @@ export function applyAutoGradeResult(
           candidateOptions: [],
         }));
   const subjectiveRatings = Object.fromEntries(
-    grade.subjectiveRatings.map((rating) => [
-      rating.criterionId,
-      {
-        ...house.ratings[rating.criterionId],
-        auto: rating.score,
-        details: rating.evidence,
-        rationale: rating.rationale,
-        confidence: rating.confidence,
-        sources: rating.sources,
-      },
-    ]),
+    grade.subjectiveRatings
+      .filter((rating) => targets.has(rating.criterionId))
+      .map((rating) => [
+        rating.criterionId,
+        {
+          ...house.ratings[rating.criterionId],
+          auto: rating.score,
+          details: rating.evidence,
+          rationale: rating.rationale,
+          confidence: rating.confidence,
+          sources: rating.sources,
+        },
+      ]),
   );
 
   return {
     ...house,
-    commute: commuteText,
-    nearby: nearbyText,
-    schools: schoolsText,
+    commute: targets.has('commute') ? commuteText : house.commute,
+    nearby: targets.has('walkable') ? nearbyText : house.nearby,
+    schools: targets.has('schools') ? schoolsText : house.schools,
     ratings: {
       ...house.ratings,
       ...subjectiveRatings,
-      ...(grade.commute
+      ...(targets.has('commute') && grade.commute
         ? {
             commute: {
               ...house.ratings.commute,
@@ -153,7 +147,7 @@ export function applyAutoGradeResult(
             },
           }
         : {}),
-      ...('grade' in grade.walkability
+      ...(targets.has('walkable') && 'grade' in grade.walkability
         ? {
             walkable: {
               ...house.ratings.walkable,
@@ -163,7 +157,9 @@ export function applyAutoGradeResult(
             },
           }
         : {}),
-      ...('grade' in grade.schools && typeof grade.schools.grade === 'number'
+      ...(targets.has('schools') &&
+      'grade' in grade.schools &&
+      typeof grade.schools.grade === 'number'
         ? {
             schools: {
               ...house.ratings.schools,
