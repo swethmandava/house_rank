@@ -97,6 +97,7 @@ import {
 import { useBoardId } from '@/hooks/use-board-id';
 import { setBoardState, subscribeToBoardState } from '@/lib/house-ranker-store';
 import { readJsonResponse } from '@/lib/http';
+import { ratingContent, type RatingSource } from '@/lib/rating-content';
 import { SCHOOL_DATA_VERSION } from '@/lib/school-rankings';
 
 type ModelContext = {
@@ -343,6 +344,44 @@ function ratingDetails(
   if (criterion.id === 'walkable') return [house.nearby];
   if (criterion.id === 'schools') return [house.schools];
   return [`Based on ${criterion.autoNote.toLowerCase()}`];
+}
+
+function ratingNarrative(
+  house: House,
+  criterion: Criterion,
+  rating: Rating | undefined,
+) {
+  const details = ratingDetails(house, criterion, rating);
+  return ratingContent(
+    rating?.rationale ?? details.join(' · '),
+    rating?.sources,
+  );
+}
+
+function SourceLinks({
+  sources,
+  limit = 8,
+}: {
+  sources: RatingSource[];
+  limit?: number;
+}) {
+  if (!sources.length) return null;
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+      {sources.slice(0, limit).map((source) => (
+        <a
+          key={source.url}
+          href={source.url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-w-0 items-center gap-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+        >
+          <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{source.title}</span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function schoolRatingLabel(match: SchoolMatch) {
@@ -1899,7 +1938,7 @@ function ScoreDetailCard({
   const rating = house.ratings[criterion.id];
   const score = effectiveScore(rating);
   const details = ratingDetails(house, criterion, rating);
-  const rationale = rating?.rationale ?? details.join(' · ');
+  const narrative = ratingNarrative(house, criterion, rating);
   const schoolRows = schoolEvidenceRows(rating?.schoolLevels, details);
   const aiEligible = Boolean(
     criterion.assessmentPrompt?.trim() || criterion.guidanceMode === 'auto',
@@ -2073,13 +2112,19 @@ function ScoreDetailCard({
         </div>
       ) : score !== null ? (
         <Textarea
-          value={rationale}
+          value={narrative.text}
           onChange={(event) => onRationaleChange(event.target.value)}
           aria-label={`Rationale for ${criterion.label}; saves automatically`}
           placeholder="Add a rationale"
           className="mt-4 min-h-20 resize-y rounded-xl border-0 bg-secondary/45 text-xs leading-5 shadow-none"
         />
       ) : null}
+
+      {score !== null && criterion.id !== 'schools' && (
+        <div className="mt-2 px-1">
+          <SourceLinks sources={narrative.sources} />
+        </div>
+      )}
 
       {aiError && (
         <p className="mt-2 text-xs text-destructive" role="alert">
@@ -2155,7 +2200,7 @@ function FragmentGroup({
                 ) &&
                 score !== null &&
                 score < 3;
-              const details = ratingDetails(house, criterion, rating);
+              const narrative = ratingNarrative(house, criterion, rating);
               return (
                 <TableCell key={house.id} className="p-0 text-center align-top">
                   <button
@@ -2202,16 +2247,13 @@ function FragmentGroup({
                         )}
                       </span>
                     )}
-                    {isExpanded && !(score === null && isGrading) && (
-                      <span className="mx-auto w-full max-w-[520px] space-y-1 px-4 pb-2 text-center text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                        {details.map((detail) => (
-                          <span key={detail} className="line-clamp-2 block">
-                            {detail}
-                          </span>
-                        ))}
-                      </span>
-                    )}
                   </button>
+                  {isExpanded && !(score === null && isGrading) && (
+                    <div className="mx-auto w-full max-w-[520px] space-y-2 px-4 pb-3 text-left text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                      <p className="line-clamp-3">{narrative.text}</p>
+                      <SourceLinks sources={narrative.sources} limit={3} />
+                    </div>
+                  )}
                 </TableCell>
               );
             })}
