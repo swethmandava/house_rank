@@ -2250,7 +2250,7 @@ function FragmentGroup({
                   </button>
                   {isExpanded && !(score === null && isGrading) && (
                     <div className="mx-auto w-full max-w-[520px] px-4 pb-3 text-left text-[11px] leading-4 whitespace-normal text-muted-foreground">
-                      <p className="line-clamp-3">{narrative.text}</p>
+                      <p>{narrative.text}</p>
                     </div>
                   )}
                 </TableCell>
