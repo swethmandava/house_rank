@@ -122,30 +122,6 @@ async function listServerHouses(boardId: string) {
   return houses.sort((first, second) => first.position - second.position);
 }
 
-async function migrateServerHouses(boardId: string, houses: House[]) {
-  await Promise.all(
-    houses.map((house, position) =>
-      setServerHouseState(boardId, house, position),
-    ),
-  );
-
-  const fields = {
-    storageVersion: encodeFirestoreValue(STORAGE_VERSION),
-    updatedAt: { timestampValue: new Date().toISOString() },
-  } satisfies Record<string, FirestoreValue>;
-  const url = new URL(boardDocumentUrl(boardId));
-  for (const fieldPath of ['storageVersion', 'updatedAt', 'houses']) {
-    url.searchParams.append('updateMask.fieldPaths', fieldPath);
-  }
-  url.searchParams.set('currentDocument.exists', 'true');
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields }),
-  });
-  if (!response.ok) throw new Error('Could not finish board migration');
-}
-
 export async function getServerBoardState(boardId: string) {
   const [boardResponse, storedHouses] = await Promise.all([
     fetch(boardDocumentUrl(boardId)),
@@ -154,15 +130,8 @@ export async function getServerBoardState(boardId: string) {
   if (boardResponse.status === 404) return undefined;
   if (!boardResponse.ok) throw new Error('Could not load the board');
   const document = (await boardResponse.json()) as FirestoreDocument;
-  const data = decodeDocument(document) as HouseRankerBoard;
-  const legacyHouses = Array.isArray(data.houses) ? data.houses : [];
-  const houses = storedHouses.length
-    ? storedHouses.map(({ position: _position, ...house }) => house)
-    : legacyHouses;
-
-  if (data.storageVersion !== STORAGE_VERSION && Array.isArray(data.houses)) {
-    await migrateServerHouses(boardId, legacyHouses);
-  }
+  const data = decodeDocument(document) as Omit<HouseRankerBoard, 'houses'>;
+  const houses = storedHouses.map(({ position: _position, ...house }) => house);
   return { ...data, houses, storageVersion: STORAGE_VERSION };
 }
 

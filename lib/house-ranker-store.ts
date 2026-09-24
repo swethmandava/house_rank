@@ -1,7 +1,6 @@
 import {
   collection,
   deleteDoc,
-  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -10,7 +9,6 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  writeBatch,
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
@@ -18,7 +16,6 @@ import type { House, HouseRankerSettings } from '@/lib/house-ranker';
 
 const COLLECTION_NAME = 'house-rankers';
 const HOUSES_COLLECTION_NAME = 'houses';
-const LEGACY_COLLECTION_NAME = 'games';
 const BOARD_ID_PATTERN = /^[a-zA-Z0-9_-]{6,64}$/;
 const STORAGE_VERSION = 2;
 
@@ -43,7 +40,6 @@ type StoredHouse = House & { position: number };
 
 const houseSnapshots = new Map<string, Map<string, string>>();
 const boardWriteQueues = new Map<string, Promise<void>>();
-const migrationPromises = new Map<string, Promise<void>>();
 
 function assertBoardId(boardId: string) {
   if (!BOARD_ID_PATTERN.test(boardId)) throw new Error('Invalid board ID');
@@ -60,10 +56,6 @@ function getHousesCollection(boardId: string) {
 
 function getHouseDocument(boardId: string, houseId: string) {
   return doc(getHousesCollection(boardId), houseId);
-}
-
-function getLegacyBoardDocument(boardId: string) {
-  return doc(collection(db, LEGACY_COLLECTION_NAME), `house-ranker-${boardId}`);
 }
 
 function withoutUndefined<T>(data: T): T {
@@ -121,38 +113,10 @@ async function writeBoardMetadata(
     {
       ...withoutUndefined(data),
       storageVersion: STORAGE_VERSION,
-      houses: deleteField(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   );
-}
-
-function migrateLegacyHouses(boardId: string, houses: House[]) {
-  const existing = migrationPromises.get(boardId);
-  if (existing) return existing;
-
-  const migration = (async () => {
-    const batch = writeBatch(db);
-    houses.forEach((house, position) => {
-      batch.set(
-        getHouseDocument(boardId, house.id),
-        storedHouse(house, position),
-      );
-    });
-    batch.set(
-      getBoardDocument(boardId),
-      {
-        storageVersion: STORAGE_VERSION,
-        houses: deleteField(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  })();
-  migrationPromises.set(boardId, migration);
-  return migration.finally(() => migrationPromises.delete(boardId));
 }
 
 export function setBoardState(boardId: string, data: HouseRankerBoard) {
@@ -175,7 +139,6 @@ export function mergeBoardState(
       {
         ...withoutUndefined(metadata),
         storageVersion: STORAGE_VERSION,
-        ...(houses ? { houses: deleteField() } : {}),
         updatedAt: serverTimestamp(),
       },
       { merge: true },
@@ -190,15 +153,10 @@ export async function getBoardState(boardId: string) {
   ]);
   if (!snapshot.exists()) return undefined;
 
-  const data = snapshot.data() as HouseRankerBoard;
-  const storedHouses = houseSnapshot.docs.map((item) =>
+  const data = snapshot.data() as Omit<HouseRankerBoard, 'houses'>;
+  const houses = houseSnapshot.docs.map((item) =>
     readStoredHouse(item.data() as StoredHouse),
   );
-  const legacyHouses = Array.isArray(data.houses) ? data.houses : [];
-  const houses = storedHouses.length ? storedHouses : legacyHouses;
-  if (data.storageVersion !== STORAGE_VERSION && Array.isArray(data.houses)) {
-    await migrateLegacyHouses(boardId, legacyHouses);
-  }
   houseSnapshots.set(
     boardId,
     new Map(
@@ -219,9 +177,8 @@ export function subscribeToBoardState(
   let boardReady = false;
   let housesReady = false;
   let boardExists = false;
-  let boardData: HouseRankerBoard | undefined;
+  let boardData: Omit<HouseRankerBoard, 'houses'> | undefined;
   let houses: House[] = [];
-  let legacyFallback: House[] | undefined;
 
   const emit = () => {
     if (!boardReady || !housesReady) return;
@@ -229,12 +186,11 @@ export function subscribeToBoardState(
       onData(undefined, false);
       return;
     }
-    const effectiveHouses = houses.length ? houses : (legacyFallback ?? []);
     onData(
       boardData
         ? {
             ...boardData,
-            houses: effectiveHouses,
+            houses,
             storageVersion: STORAGE_VERSION,
           }
         : undefined,
@@ -244,44 +200,12 @@ export function subscribeToBoardState(
 
   const unsubscribeBoard = onSnapshot(
     getBoardDocument(boardId),
-    async (snapshot) => {
-      if (!snapshot.exists()) {
-        try {
-          const legacySnapshot = await getDoc(getLegacyBoardDocument(boardId));
-          if (legacySnapshot.exists()) {
-            await setBoardState(
-              boardId,
-              legacySnapshot.data() as HouseRankerBoard,
-            );
-            return;
-          }
-        } catch (error) {
-          onError?.(
-            error instanceof Error
-              ? error
-              : new Error('Failed to load legacy board'),
-          );
-        }
-      }
+    (snapshot) => {
       boardExists = snapshot.exists();
       boardData = snapshot.exists()
-        ? (snapshot.data() as HouseRankerBoard)
+        ? (snapshot.data() as Omit<HouseRankerBoard, 'houses'>)
         : undefined;
       boardReady = true;
-
-      if (
-        boardData?.storageVersion !== STORAGE_VERSION &&
-        Array.isArray(boardData?.houses)
-      ) {
-        legacyFallback = boardData.houses;
-        void migrateLegacyHouses(boardId, boardData.houses).catch((error) =>
-          onError?.(
-            error instanceof Error
-              ? error
-              : new Error('Failed to migrate board'),
-          ),
-        );
-      }
       emit();
     },
     onError,
@@ -293,7 +217,6 @@ export function subscribeToBoardState(
       houses = snapshot.docs.map((item) =>
         readStoredHouse(item.data() as StoredHouse),
       );
-      if (houses.length) legacyFallback = undefined;
       houseSnapshots.set(
         boardId,
         new Map(
