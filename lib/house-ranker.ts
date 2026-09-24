@@ -140,7 +140,7 @@ export const defaultCriteria: Criterion[] = [
     autoNote: 'Local data plus your own visit assessment',
     guidanceMode: 'manual',
     assessmentPrompt:
-      'Use recent local crime trends, traffic safety, street lighting, and visible street conditions. A 5/5 has low incident levels compared with nearby areas and no material safety concerns; reduce the score for recurring violent or property crime, hazardous traffic, or weak evidence.',
+      'Use recent local crime trends, traffic safety, street lighting, and visible street conditions. A 5/5 has low incident levels compared with nearby areas and no material safety concerns; reduce the score only for evidence of recurring violent or property crime, hazardous traffic, or other actual safety concerns.',
   },
   {
     id: 'outdoor-space',
@@ -458,7 +458,7 @@ export function buildSubjectiveAssessmentCriteria(criteria: Criterion[]) {
       label: criterion.label,
       requirements:
         criterion.assessmentPrompt?.trim() ||
-        `Assess “${criterion.label}” using observable listing, location, and public-record evidence. A 5/5 should be an unusually strong match; use lower scores when evidence is weak or the home falls short.`,
+        `Assess “${criterion.label}” using observable listing, location, and public-record evidence. A 5/5 should be an unusually strong match; use lower scores when the home falls short, not merely when evidence is incomplete.`,
       priorities: criterion.priorities,
       suggestedEvidence: criterion.autoNote,
     }));
