@@ -2249,9 +2249,8 @@ function FragmentGroup({
                     )}
                   </button>
                   {isExpanded && !(score === null && isGrading) && (
-                    <div className="mx-auto w-full max-w-[520px] space-y-2 px-4 pb-3 text-left text-[11px] leading-4 whitespace-normal text-muted-foreground">
+                    <div className="mx-auto w-full max-w-[520px] px-4 pb-3 text-left text-[11px] leading-4 whitespace-normal text-muted-foreground">
                       <p className="line-clamp-3">{narrative.text}</p>
-                      <SourceLinks sources={narrative.sources} limit={3} />
                     </div>
                   )}
                 </TableCell>
